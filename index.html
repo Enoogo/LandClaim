@@ -1,0 +1,2979 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Land Claim   棍棋</title>
+<style>
+  :root {
+    --bg: #16120d;
+    --bg2: #1e1913;
+    --panel: #241d15;
+    --panel-line: #3a2f22;
+    --text: #f4ebdc;
+    --muted: #b9a894;
+    --gold: #e0a94e;
+    --gold-soft: #f0c67e;
+    --danger: #e2705a;
+    --ok: #8fc47a;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 20% -10%, #2a2118 0%, transparent 60%),
+      radial-gradient(1000px 500px at 110% 20%, #241b12 0%, transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 22px 18px 40px; }
+  header.head { text-align: center; margin-bottom: 18px; }
+  header.head h1 {
+    margin: 0;
+    font-size: clamp(26px, 4vw, 40px);
+    letter-spacing: 2px;
+    background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  header.head h1 em { font-style: normal; font-size: 0.55em; letter-spacing: 4px; opacity: 0.85; }
+  header.head p { margin: 8px 0 0; color: var(--muted); font-size: 14px; letter-spacing: 1px; }
+
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 20px; align-items: start; }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
+
+  .board-col { min-width: 0; }
+  .board-box {
+    position: relative;
+    border-radius: 20px;
+    padding: 10px;
+    background: linear-gradient(160deg, #3b2c1c, #241a10);
+    box-shadow: 0 22px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07);
+  }
+  canvas#board {
+    width: 100%;
+    aspect-ratio: 38 / 33;
+    display: block;
+    border-radius: 12px;
+    touch-action: manipulation;
+    cursor: pointer;
+  }
+  .message {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid var(--panel-line);
+    border-left: 4px solid var(--gold);
+    font-size: 14.5px;
+    line-height: 1.65;
+  }
+  .message.warn { border-left-color: var(--danger); }
+  .message.claim { border-left-color: var(--ok); }
+
+  .overlay {
+    position: absolute; inset: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(18, 13, 8, 0.78);
+    backdrop-filter: blur(3px);
+    border-radius: 12px;
+    text-align: center;
+    padding: 20px;
+  }
+  .overlay[hidden] { display: none; }
+  .overlay h2 { margin: 0 0 8px; font-size: 30px; color: var(--gold-soft); }
+  .overlay p { margin: 0 0 18px; color: var(--text); font-size: 16px; }
+
+  .side { display: flex; flex-direction: column; gap: 14px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-line);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .card h3 { margin: 0 0 12px; font-size: 14px; letter-spacing: 2px; color: var(--muted); font-weight: 600; }
+
+  .turn-row { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600; }
+  .chip { width: 20px; height: 20px; border-radius: 50%; display: inline-block; flex: none; }
+  .chip.black { background: #17120c; border: 2px solid #6b5a41; }
+  .chip.white { background: #f8f2e6; border: 2px solid #6b5a41; }
+  .require { margin-top: 10px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .require b { color: var(--gold-soft); font-weight: 600; }
+
+  .scores { display: grid; grid-template-columns: repeat(auto-fit, minmax(58px, 1fr)); gap: 6px; }
+  .score-box {
+    border-radius: 8px; padding: 5px 3px; text-align: center;
+    background: var(--bg2); border: 1px solid var(--panel-line);
+  }
+  .score-box .who { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 10.5px; color: var(--muted); }
+  .score-box .who .chip { width: 11px; height: 11px; }
+  .score-box .num { font-size: 17px; font-weight: 700; line-height: 1.2; }
+  .score-box.active { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+  /* 地盘面板：整体缩小（范围 / 格子 / 字体） */
+  .card.compact { padding: 9px 10px; }
+  .card.compact h3 { margin-bottom: 7px; font-size: 11.5px; letter-spacing: 1px; }
+
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn-row.tri { grid-template-columns: 1fr 1fr 1fr; }
+  .btn-row.quad { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  button {
+    font: inherit; color: var(--text);
+    background: linear-gradient(180deg, #33291d, #2a2116);
+    border: 1px solid var(--panel-line);
+    border-radius: 11px;
+    padding: 11px 12px;
+    cursor: pointer;
+    transition: transform .06s ease, background .15s ease, opacity .15s ease;
+  }
+  button:hover:not(:disabled) { background: linear-gradient(180deg, #3d3122, #322817); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: 0.42; cursor: not-allowed; }
+  button.primary { background: linear-gradient(180deg, var(--gold), #b9822f); color: #241a0c; border-color: #b9822f; font-weight: 700; }
+  button.primary:hover:not(:disabled) { background: linear-gradient(180deg, #eec078, #c68c36); }
+  button.mini { padding: 5px 10px; font-size: 12px; border-radius: 8px; }
+
+  details.rules { padding: 0; overflow: hidden; }
+  details.rules summary {
+    padding: 15px 16px; cursor: pointer; list-style: none;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 14px; letter-spacing: 2px; color: var(--muted); font-weight: 600;
+  }
+  details.rules summary::-webkit-details-marker { display: none; }
+  details.rules summary::after { content: "＋"; color: var(--gold); }
+  details.rules[open] summary::after { content: "－"; }
+  .rules-body { padding: 0 16px 16px; font-size: 13.5px; line-height: 1.85; color: #ddd0bd; }
+  .rules-body h4 { margin: 14px 0 4px; color: var(--gold-soft); font-size: 13.5px; }
+  .rules-body ul { margin: 4px 0; padding-left: 20px; }
+  .rules-body li { margin: 3px 0; }
+  .rules-body .note { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--bg2); border: 1px dashed var(--panel-line); color: var(--muted); }
+
+  /* ===== 申请 / 提议弹窗（对所有玩家弹出，醒目） ===== */
+  #reqModal {
+    position: fixed; inset: 0; z-index: 90;
+    display: flex; align-items: center; justify-content: center;
+    padding: 18px;
+    background: rgba(10, 7, 4, 0.62);
+    backdrop-filter: blur(3px);
+  }
+  #reqModal[hidden] { display: none; }
+  .modal-card {
+    width: min(460px, 100%);
+    background: var(--panel); border: 1px solid var(--gold);
+    border-radius: 16px; padding: 18px 20px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+    animation: reqPop .16s ease-out;
+  }
+  @keyframes reqPop { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-card h3 { margin: 0 0 10px; font-size: 17px; letter-spacing: 1px; color: var(--gold-soft); }
+  .modal-card .req-body { font-size: 14px; line-height: 1.8; }
+  .modal-card .req-votes { margin: 10px 0 2px; font-size: 12.5px; color: var(--muted); line-height: 1.8; }
+  .modal-card .prop-btns { margin-top: 14px; flex-wrap: wrap; }
+
+  /* ===== 思考时间 ===== */
+  .think-row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+  .think-row label { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  input.think {
+    width: 86px; padding: 8px 10px; border-radius: 9px;
+    border: 1px solid var(--panel-line); background: var(--bg2); color: var(--text);
+    font-size: 13.5px; font-family: Consolas, monospace;
+  }
+  .think-clock { margin-top: 8px; font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+  .think-clock b { color: var(--gold-soft); }
+  .think-clock .hurry { color: var(--danger); }
+  footer { margin-top: 26px; text-align: center; color: #7d6c58; font-size: 12px; line-height: 1.9; }
+  footer code { background: #241d15; padding: 2px 7px; border-radius: 6px; color: var(--muted); }
+
+  /* ===== 联机版新增 ===== */
+  .netbar {
+    display: flex; flex-wrap: wrap; gap: 10px 14px; justify-content: center; align-items: center;
+    margin: 12px 0 0; font-size: 13px; color: var(--muted);
+  }
+  .netbar b { color: var(--gold-soft); }
+  .netbar .ok { color: var(--ok); }
+  .netbar .bad { color: var(--danger); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #6b5a41; display: inline-block; margin-right: 5px; }
+  .dot.on { background: var(--ok); }
+
+  .proposal {
+    margin-top: 12px; padding: 12px 14px; border-radius: 12px;
+    background: rgba(224,169,78,0.12); border: 1px solid var(--gold);
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
+    font-size: 14px;
+  }
+  .proposal[hidden] { display: none; }
+  .prop-btns { display: flex; gap: 8px; }
+
+  #lobby {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(12, 9, 6, 0.93);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 18px; overflow-y: auto;
+  }
+  #lobby[hidden] { display: none; }
+  .lobby-card {
+    width: min(760px, 100%);
+    background: var(--panel); border: 1px solid var(--panel-line);
+    border-radius: 18px; padding: 26px;
+  }
+  .lobby-card h2 { margin: 0 0 6px; font-size: 23px; color: var(--gold-soft); letter-spacing: 2px; }
+  .lobby-card .sub { color: var(--muted); font-size: 13px; margin: 0 0 18px; line-height: 1.8; }
+  .lobby-card .sub b { color: var(--gold-soft); }
+  .lobby-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .lobby-grid { grid-template-columns: 1fr; } }
+  .lobby-box { background: var(--bg2); border: 1px solid var(--panel-line); border-radius: 12px; padding: 16px; }
+  .lobby-box h3 { margin: 0 0 12px; font-size: 14px; letter-spacing: 2px; color: var(--muted); }
+  .color-pick { display: flex; gap: 10px; margin-bottom: 12px; }
+  .color-pick label {
+    flex: 1; display: flex; align-items: center; gap: 8px; padding: 10px;
+    border-radius: 10px; border: 1px solid var(--panel-line); cursor: pointer; font-size: 13px;
+  }
+  .color-pick label:has(input:checked) { border-color: var(--gold); background: rgba(224,169,78,0.12); }
+  .color-pick input { accent-color: var(--gold); }
+  input.code {
+    width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--panel-line);
+    background: var(--bg2); color: var(--text); font-size: 20px; letter-spacing: 8px;
+    text-transform: uppercase; text-align: center; margin-bottom: 12px;
+    font-family: Consolas, monospace;
+  }
+  .lobby-msg { margin-top: 14px; min-height: 22px; font-size: 13px; line-height: 1.8; color: var(--danger); }
+  .lobby-msg.info { color: var(--muted); }
+
+  .wait-room {
+    font-size: 26px; letter-spacing: 8px; color: var(--gold-soft);
+    margin: 8px 0 12px; font-weight: 700; font-family: Consolas, monospace;
+  }
+  .wait-link { font-size: 12px; opacity: 0.85; word-break: break-all; display: block; margin-bottom: 12px; }
+
+  .record-text {
+    width: 100%; min-height: 150px; resize: vertical;
+    margin-top: 10px; padding: 10px 12px;
+    background: var(--bg2); color: var(--text);
+    border: 1px solid var(--panel-line); border-radius: 10px;
+    font-family: Consolas, "Courier New", monospace; font-size: 12.5px; line-height: 1.7;
+  }
+  .record-text:focus { outline: none; border-color: var(--gold); }
+
+  /* ===== 多人观战 / 退出房间 / 棋盘大小 ===== */
+  button.leave-btn {
+    position: fixed; top: 14px; left: 14px; z-index: 70;
+    padding: 9px 14px; font-size: 13px; border-radius: 10px;
+    background: linear-gradient(180deg, #3a2c22, #2a2018);
+    box-shadow: 0 8px 22px rgba(0,0,0,0.35);
+  }
+  button.leave-btn:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
+
+  .members { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .members li {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 9px; border-radius: 8px; font-size: 12.5px; color: var(--muted);
+    background: rgba(255,255,255,0.03);
+  }
+  .members li .role { min-width: 38px; color: var(--muted); font-weight: 600; font-size: 12px; }
+  .members li .nm { color: var(--text); font-weight: 700; font-size: 13.5px; }  /* 昵称：最重要、最醒目 */
+  .members li .mid {                                                    /* id：旁边淡淡的小字备注 */
+    color: var(--muted); font-size: 10.5px; opacity: 0.6;
+    font-family: Consolas, monospace; letter-spacing: 1px;
+  }
+  .members li .mine-tag { color: var(--gold-soft); font-size: 11px; }
+  .idnote {
+    color: var(--muted); font-size: 10.5px; opacity: 0.7;
+    font-family: Consolas, monospace; letter-spacing: 1px;
+  }
+  .members li .st { margin-left: auto; font-size: 11.5px; }
+  .members li .st.on { color: var(--ok); }
+  .members li .st.off { color: var(--muted); }
+
+  .size-row { display: flex; gap: 10px; align-items: center; }
+  select.size {
+    flex: 1; padding: 10px 12px; border-radius: 10px; font: inherit;
+    border: 1px solid var(--panel-line); background: var(--bg2); color: var(--text); font-size: 14px;
+  }
+
+  input.nick {
+    width: 100%; padding: 11px 12px; border-radius: 10px;
+    border: 1px solid var(--panel-line); background: var(--bg2); color: var(--text);
+    font-size: 14px; margin-bottom: 14px;
+  }
+
+  /* ===== 注册 / 登录（替代原来的填昵称） ===== */
+  .auth-box {
+    margin-bottom: 14px; padding: 12px 14px;
+    border: 1px dashed var(--panel-line); border-radius: 12px; background: var(--bg2);
+  }
+  .auth-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .auth-row input.nick { flex: 1; min-width: 190px; margin-bottom: 10px; }
+  .auth-btns { display: flex; gap: 8px; margin-bottom: 8px; }
+  .auth-status { font-size: 12.5px; color: var(--muted); line-height: 1.75; }
+  .auth-status b { color: var(--gold-soft); }
+
+  /* ===== 导出棋谱：复制显示的棋谱 / 复制压缩后的棋谱 ===== */
+  .export-bar {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+    background: rgba(224,169,78,0.10); border: 1px dashed var(--gold);
+    font-size: 12px; color: var(--muted); line-height: 1.7;
+  }
+  .export-bar[hidden] { display: none; }
+  .watch-pick {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--muted); margin-bottom: 12px; cursor: pointer;
+  }
+  .watch-pick input { accent-color: var(--gold); }
+
+  /* 座位（上场下棋） */
+  .seats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  button.seat {
+    display: flex; align-items: center; gap: 8px; text-align: left;
+    padding: 9px 10px; font-size: 12.5px; border-radius: 10px;
+  }
+  button.seat .who2 { display: flex; flex-direction: column; line-height: 1.35; min-width: 0; }
+  button.seat .nm {
+    color: var(--text); font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  button.seat .mid { color: var(--muted); font-size: 10.5px; opacity: 0.75; letter-spacing: 1px; }
+  button.seat.free { border-color: var(--gold); background: rgba(224,169,78,0.12); }
+  button.seat.free:hover:not(:disabled) { background: rgba(224,169,78,0.22); }
+  button.seat.mine { border-color: var(--ok); box-shadow: 0 0 0 1px var(--ok) inset; }
+  button.seat:disabled { opacity: 0.8; cursor: default; }
+</style>
+</head>
+<body>
+<button class="leave-btn" id="btnLeaveRoom" hidden>← 退出房间</button>
+<div class="wrap">
+  <header class="head">
+    <h1>棍棋<em>LAND CLAIM</em></h1>
+    <p></p>
+    <div class="netbar" id="netBar"></div>
+  </header>
+
+  <main>
+    <section class="board-col">
+      <div class="board-box">
+        <canvas id="board"></canvas>
+        <div class="overlay" id="waitOverlay" hidden>
+          <div>
+            <h2>等待棋手加入</h2>
+            <p>让对方联网打开本页，输入房间号加入：</p>
+            <div class="wait-room" id="waitRoom">—————</div>
+            <span class="wait-link" id="waitLink"></span>
+            <button class="primary" id="btnCopyLink2">复制邀请链接</button>
+            <button id="btnCloseWait">关闭</button>
+          </div>
+        </div>
+        <div class="overlay" id="overlay" hidden>
+          <div>
+            <h2 id="overlayTitle">对局结束</h2>
+            <p id="overlayText"></p>
+            <button class="primary" id="btnOverlayNew">再来一局</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="proposal" id="joinBar" hidden>
+        <span id="joinText"></span>
+        <span class="prop-btns">
+          <button class="primary" id="btnJoinYes">同意</button>
+          <button id="btnJoinNo">拒绝</button>
+          <button id="btnJoinCancel">撤销申请</button>
+        </span>
+      </div>
+
+      <div class="proposal" id="proposalBar" hidden>
+        <span id="proposalText"></span>
+        <span class="prop-btns">
+          <button class="primary" id="btnPropYes">同意</button>
+          <button id="btnPropNo">拒绝</button>
+          <button id="btnPropCancel">撤销提议</button>
+        </span>
+      </div>
+
+      <div class="message" id="message"></div>
+
+      <div class="card" id="opsCard">
+        <h3>对局操作</h3>
+        <div class="btn-row">
+          <button class="primary" id="btnNew">新对局</button>
+          <button id="btnUndo">悔一手</button>
+          <button id="btnResign">认输</button>
+          <button id="btnEndGame">手动结束对局</button>
+        </div>
+        <div class="require">「悔一手」「新对局」「手动结束对局」都会<b>弹窗</b>向所有玩家发起提议，
+          <b>所有在场玩家都同意才生效</b>（2 分钟没集齐同意即作废）；
+          「手动结束对局」生效后按当前<b>地数</b>结算胜负并自动回放棋谱；
+          <b>有人不同意</b>结束对局则棋局继续，<b>按本该轮到的顺序，转给第一个拒绝的人继续下</b>。</div>
+        <div class="think-row">
+          <label for="aiDepthInput">电脑代下 · 枚举深度（步）</label>
+          <input class="think" id="aiDepthInput" type="number" min="1" max="5" step="1"
+            value="2" autocomplete="off">
+          <button class="primary mini" id="btnAiPlay">电脑代下</button>
+        </div>
+        <div class="think-clock" id="aiHint"></div>
+        <div class="think-row">
+          <label for="thinkInput">思考时间（秒）</label>
+          <input class="think" id="thinkInput" type="number" min="0" max="86400" step="10"
+            placeholder="0" autocomplete="off">
+          <button class="primary mini" id="btnThink">应用</button>
+          <button class="mini" id="btnThinkOff">不限时</button>
+        </div>
+        <div class="think-clock" id="thinkHint"></div>
+      </div>
+
+      <div class="card" id="recordCard">
+        <h3>对局记录 · 回放 / 导入</h3>
+        <div class="btn-row quad">
+          <button class="primary" id="recordPlay">播放</button>
+          <button id="recordPrev">上一步</button>
+          <button id="recordNext">下一步</button>
+          <button id="recordBranch">从这里续下</button>
+          <button id="recordImport">导入下方棋谱</button>
+          <button id="recordCopy">导出棋谱</button>
+          <button id="recordExit">回到对局</button>
+        </div>
+        <div class="export-bar" id="recordExportBar" hidden>
+          <button class="primary mini" id="recordCopyPlain">复制显示的棋谱</button>
+          <button class="primary mini" id="recordCopyZip">复制压缩后的棋谱</button>
+          <span class="idnote">压缩谱很短：一串棋 = 第一根棍的坐标（如 (-31,6) 写成 -3106）
+            + 之后每根棍的方向 abcdef。导入时文本里有「→」按老格式解析，没有就按压缩格式解析。</span>
+        </div>
+        <div class="require" id="recordStatus">第 0 / 0 手 · 黑地 0 · 白地 0</div>
+        <textarea id="recordText" class="record-text" spellcheck="false"
+          placeholder="本局棋谱会在这里实时显示（随落子自动更新）。要回放别人的棋谱：把纯文本棋谱粘贴到这里，点「导入下方棋谱」即可自动播放（每秒 10 步），也可以「上一步 / 下一步」手动查看，随时显示当时的各方地数。&#10;&#10;格式示例：&#10;1 黑 (18,0)→(18,1)&#10;2 白 (18,0)→(19,0)（围得 1 格）&#10;3 黑 认输"></textarea>
+        <div class="require">格式：<b>手数 黑/白/红/绿/紫/蓝 (a,b)→(c,d)</b>，认输写「认输」、手动终局写「终局」；
+          每根棍都从<b>起端指向终端</b>（起端接上一根的终端），前后首尾衔接顺下来。
+          当前对局的记录<b>实时显示在这个框里</b>；点「<b>导出棋谱</b>」可选<b>复制显示的棋谱</b>或<b>复制压缩后的棋谱</b>。
+          <br>导入自动识别两种格式：文本里有「<b>→</b>」按<b>老棋谱</b>解析，没有就按<b>压缩棋谱</b>解析（都能粘贴到这里点「导入下方棋谱」）。
+          <br><b>分支续下</b>：用「上一步 / 下一步」停在想改的那一步，点「<b>从这里续下</b>」，
+          整个房间就换成这个局面继续下（对方也会同步看到）；棋谱比棋盘大时会提示先把棋盘调大。</div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h3>当前行棋</h3>
+        <div class="turn-row">
+          <span class="chip black" id="turnChip"></span>
+          <span id="turnText">黑方行棋</span>
+        </div>
+        <div class="require" id="youText"></div>
+        <div class="require" id="requireText"></div>
+        <div class="think-clock" id="thinkClock"></div>
+      </div>
+
+      <div class="card compact">
+        <h3>格数</h3>
+        <div class="scores" id="scoreGrid"></div>
+      </div>
+
+      <div class="card">
+        <h3>坐上去</h3>
+        <div class="seats" id="seatGrid"></div>
+        <div class="btn-row" style="margin-top:8px">
+          <button id="btnStand">下座</button>
+        </div>
+        <div class="require" id="seatHint">点空位<b>坐下</b>就上场（黑白红绿紫蓝各用各的棋子颜色，轮流落子）；
+          <b>对局进行中</b>要上场的新颜色，需要所有在场玩家弹窗同意；
+          <b>空位可以直接坐上去接替</b>（有人下来 / 掉线 / 超时被踢下场后，棋局保留，接替者继续下）。
+          坐着的人点「<b>下来</b>」让出座位（<b>棋局不重置</b>）；「认输」才是退出比赛。</div>
+      </div>
+
+      <div class="card">
+        <h3>在线成员</h3>
+        <ul class="members" id="memberList"></ul>
+        <div class="require" id="memberHint"></div>
+      </div>
+
+      <div class="card">
+        <h3>棋盘大小</h3>
+        <div class="size-row">
+          <select class="size" id="sizeSelect">
+            <option value="9">9 路</option>
+            <option value="11">11 路</option>
+            <option value="13">13 路</option>
+            <option value="15">15 路</option>
+            <option value="17">17 路</option>
+            <option value="19" selected>19 路</option>
+            <option value="21">21 路</option>
+            <option value="23">23 路</option>
+            <option value="25">25 路</option>
+            <option value="27">27 路</option>
+            <option value="29">29 路</option>
+            <option value="31">31 路</option>
+          </select>
+          <button class="primary" id="btnSize">应用</button>
+        </div>
+        <div class="require">坐标原点在<b>棋盘中心 (0,0)</b>
+          <b>更改棋盘大小会清空当前棋局</b>，从新的一局开始。</div>
+      </div>
+
+      <details class="card rules">
+        <summary>规则说明</summary>
+        <div class="rules-body">
+          <h4>棋盘与棋子</h4>
+          <ul>
+            <li>棋盘是<b>正六边形</b>（默认边长 19，进房间后可用「棋盘大小」随时改），内部全部由<b>正三角形格</b>铺满（边长 n 时共 6n² 个三角格）。</li>
+            <li>坐标<b>原点 (0,0) 在棋盘正中心</b>：所以小棋盘的棋谱拿到大棋盘上照样能看，落在大棋盘中央。</li>
+            <li>棋子是<b>棍</b>：一根棍正好占一条三角网格线段（相邻两个网格点之间）。</li>
+            <li>任何棍都不能与已有棍重合，也<b>不能压在棋盘边框线上</b>。</li>
+          </ul>
+          <h4>落子规则</h4>
+          <ul>
+            <li>棋手按 <b>黑→白→红→绿→紫→蓝</b> 轮流落一根棍，<b>没有"停一手"</b>，必须落子（在座几人就几人轮）。</li>
+            <li><b>末端规则</b>：新棍必须接在<b>上一手的末端（线头）</b>上——就是上一根棍没有与更早棋子相连的那个端点。线只能向前长，<b>不能接回它的另一端</b>。</li>
+            <li><b>新开一串</b>（全盘第一手、围得地盘之后的第一手、或线头被堵死时）：新棍必须与<b>棋盘边框</b>连在一起，或者与<b>任何一根已下的棍</b>相接（仍然不能重合）。</li>
+            <li>允许把棍下进别人已经围好的地盘里（从边界线连进去）。</li>
+          </ul>
+          <h4>围地 · 抢地</h4>
+          <ul>
+            <li>棍连成的线把棋盘分成两块时，<b>面积较小的那块</b>（按三角格数）归最后落子的一方，染成他棋子的颜色（黑白红绿紫蓝）。</li>
+            <li>在对方地盘里围出一块同样结算：<b>较小的一侧归落子方</b>，程序立即重新染色——这就是抢地。</li>
+            <li><b>禁止一步抢地</b>：每次围完地后计数器归零，之后每下一手计数 +1。
+              当<b>计数为 1</b>（围完地后的第一手）时，在<b>对方已经围的地里</b>围出一块地<b>无效（不能这样落子）</b>；
+              先在别处下一手、再围就可以。计数 ≥2 时围出来的抢地照常允许，在对方地里落子、围空地也照常允许。</li>
+            <li><b>平分不算</b>：任何一次把地分成<b>一样大的两块</b>（不管是空地还是已围住的地），
+              都<b>不染色、不计数</b>；这步棋可以下，下一步走「新开一串」。</li>
+          </ul>
+          <h4>终局</h4>
+          <ul>
+            <li>不设停手：轮到的一方<b>无处可下</b>时对局结束，三角格多者胜；
+              <b>认输 = 退出比赛</b>（其余棋手继续下，只剩一人时该人胜，「悔一手」可回退认输）。</li>
+            <li><b>手动结束对局</b>也要<b>所有在场玩家弹窗同意</b>才生效，生效后按当前地数结算并自动回放棋谱；
+              <b>有人不同意</b>则对局继续，<b>按本该轮到的顺序，转给第一个拒绝的人继续下</b>。</li>
+          </ul>
+          <h4>多人约定（联机）</h4>
+          <ul>
+            <li><b>所有申请都以弹窗</b>发给每个玩家：上场申请、悔一手、新对局、结束对局；
+              <b>悔棋 / 新对局 / 结束对局都要所有在场玩家同意</b>才生效（有人拒绝即作废，提议者可撤销）。</li>
+            <li><b>下来</b>：坐着的人随时可以让出座位，<b>棋局不重置</b>；空位谁都能坐上去<b>接替继续下</b>（也可以换别的颜色上场）。</li>
+            <li><b>掉线自动下场</b>：30 秒没动静的棋手自动让出座位（棋局保留），新加入的人可以直接接替；
+              <b>轮到空着的座位自动跳过</b>，棋局绝不卡在掉线那家的回合上。</li>
+            <li><b>思考时间</b>（可选）：超过时限的一方被<b>自动请下场</b>（本局不能再上场），别人可接替继续下。</li>
+          </ul>
+          <div class="note">
+            规则解读："末端"实现为<b>上一根棍未与更早棋子相连的那个端点</b>（线不断向前延伸，可以拐弯）；"比较小的那块面积"实现为新棍把某区域一分为二后<b>较小的那一半</b>。
+          </div>
+        </div>
+      </details>
+    </aside>
+  </main>
+
+  <footer>
+    联机版 v0.8.1 · PHP 服务器 + HTTP 轮询同步（端口 6850）· 主机运行 <code>php start.php</code> 或双击 <code>start-server.bat</code><br>
+    棋盘几何：正六边形边长 n = 3n²+3n+1 个网格点 / 9n²+3n 条网格边 / 6n² 个正三角形格（默认 n = 19；坐标原点在棋盘中心）
+  </footer>
+</div>
+
+<div id="lobby">
+  <div class="lobby-card">
+    <h2>Land Caim   棍棋</h2>
+    <p class="sub">
+      电脑连同一个路由器 / WiFi 即可对战：<b>一台点「创建房间」当主机</b>，
+      其他人打开主机地址、输入房间号加入。<b>人数不限</b>：进房间后大家都是观众，
+      在房间里<b>选一个颜色坐下</b>就上场下棋（黑白红绿紫蓝，各用各的棋子颜色，轮流落子）。
+      所有落子都由 PHP 服务器按规则校验并同步。<b>不注册也可以直接玩</b>（以「游客」临时身份进入）；
+      下面的<b>注册 / 登录</b>是可选的，登录后换手机 / 电脑还能接着下同一盘棋。
+    </p>
+    <div class="auth-box" id="authBox">
+      <div class="auth-row">
+        <input class="nick" id="authUser" maxlength="16" placeholder="用户名（2-16 位：字母 / 数字 / 中文）"
+          autocomplete="off" spellcheck="false">
+        <input class="nick" id="authPass" type="password" maxlength="64" placeholder="密码（至少 4 位）"
+          autocomplete="off">
+      </div>
+      <div class="auth-btns">
+        <button class="primary" id="btnRegister">注册新用户</button>
+        <button id="btnLogin">登录</button>
+      </div>
+      <div class="auth-status" id="authStatus"></div>
+    </div>
+    <div class="lobby-grid">
+      <div class="lobby-box">
+        <h3>创建房间（当主机）</h3>
+        <button class="primary" id="btnCreate" style="width:100%">创建房间</button>
+        <div class="require">创建后你也是观众：在房间里选颜色坐下，就可以开始对局。</div>
+      </div>
+      <div class="lobby-box">
+        <h3>加入房间（棋手 / 观众）</h3>
+        <input class="code" id="joinCode" maxlength="5" placeholder="房间号" autocomplete="off" spellcheck="false">
+        <button class="primary" id="btnJoin" style="width:100%">加入房间</button>
+        <div class="require">加入后先当观众；坐下才上场。<b>对局进行中的新颜色</b>上场需要<b>所有在场玩家同意</b>（弹窗）；空位可直接接替。</div>
+      </div>
+    </div>
+    <div class="lobby-msg" id="lobbyMsg"></div>
+  </div>
+</div>
+
+<div id="reqModal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="reqModalTitle">
+    <h3 id="reqModalTitle">请求</h3>
+    <div class="req-body" id="reqModalBody"></div>
+    <div class="req-votes" id="reqModalVotes"></div>
+    <div class="prop-btns">
+      <button class="primary" id="btnReqYes">同意</button>
+      <button id="btnReqNo">拒绝</button>
+      <button id="btnReqCancel">撤销</button>
+      <button id="btnReqClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+ *  纯逻辑层（不含任何 DOM 依赖，可在 Node 中直接测试）
+ *  三角网格坐标：点 p = a*e1 + b*e2，e1=(1,0)，e2=(1/2, √3/2)
+ *  棋盘 = |a|<=n, |b|<=n, |a+b|<=n 的正六边形（边长 n，默认 19，可按房间改）
+ *  坐标原点 (0,0) 就在棋盘正中心，a、b 都可以是负数——所以小棋盘的棋谱
+ *  坐标可以直接放到大棋盘上看，位置就在大棋盘的中间。
+ *  ===================================================================== */
+const Logic = (function () {
+  let SIDE = 19;                       // 六边形边长（每边 n 个单位棍长）
+
+  function projX(a, b) { return a + b * 0.5; }
+  function projY(a, b) { return b * Math.sqrt(3) / 2; }
+
+  function pointKey(a, b) { return a + ',' + b; }
+  function edgeKey(a1, b1, a2, b2) {
+    if (a1 < a2 || (a1 === a2 && b1 <= b2)) return a1 + ',' + b1 + '|' + a2 + ',' + b2;
+    return a2 + ',' + b2 + '|' + a1 + ',' + b1;
+  }
+  function edgePoints(ek) {
+    const p = ek.split('|');
+    const s = p[0].split(','), t = p[1].split(',');
+    return [[+s[0], +s[1]], [+t[0], +t[1]]];
+  }
+
+  /* ---- 棋子颜色：黑 白 红 绿 紫 蓝（owner 标记 1..6 就是下标 +1） ---- */
+  const COLORS = ['B', 'W', 'R', 'G', 'Y', 'L'];
+  function markOf(color) {
+    const i = COLORS.indexOf(color);
+    return i < 0 ? 0 : i + 1;
+  }
+  function colorOfMark(m) {
+    return COLORS[m - 1] || null;
+  }
+
+  /* ---- 静态几何：按棋盘边长整体重建（setSize / build） ---- */
+  let pointIndex = new Map();
+  let points = [];
+  function hasPoint(a, b) { return pointIndex.has(pointKey(a, b)); }
+
+  let triangles = [];
+  function addTri(p1, p2, p3) {
+    const t = { id: triangles.length, pts: [p1, p2, p3], edges: [] };
+    for (let i = 0; i < 3; i++) {
+      const p = t.pts[i], q = t.pts[(i + 1) % 3];
+      t.edges.push(edgeKey(p[0], p[1], q[0], q[1]));
+    }
+    triangles.push(t);
+  }
+
+  let edgeTris = new Map();
+  let ALL_EDGES = [];    // 可落子：内部边，恰临 2 个三角格
+  let FRAME_EDGES = [];  // 边框：只临 1 个三角格，不可落子
+  let framePoints = new Set();
+  let EDGE_LIST = [];
+  let FRAME_EDGE_LIST = [];
+  let vertexEdges = new Map();
+  let triNeighbors = [];
+  let bfsStamp = new Int32Array(0);
+  let bfsStampCounter = 0;
+
+  const MIN_SIDE = 3, MAX_SIDE = 40;
+
+  /** 按棋盘边长构建全部静态几何（原点固定在棋盘中心）。 */
+  function build(side) {
+    SIDE = side;
+
+    /* ---- 网格点：|a|<=n、|b|<=n、|a+b|<=n，(0,0) 是棋盘中心 ---- */
+    pointIndex = new Map();
+    points = [];
+    for (let a = -SIDE; a <= SIDE; a++) {
+      for (let b = -SIDE; b <= SIDE; b++) {
+        if (Math.abs(a + b) <= SIDE) {
+          pointIndex.set(pointKey(a, b), points.length);
+          points.push([a, b]);
+        }
+      }
+    }
+
+    /* ---- 三角形（格子）---- */
+    triangles = [];
+    for (let a = -SIDE - 1; a <= SIDE; a++) {
+      for (let b = -SIDE - 1; b <= SIDE; b++) {
+        if (hasPoint(a, b) && hasPoint(a + 1, b) && hasPoint(a, b + 1)) {
+          addTri([a, b], [a + 1, b], [a, b + 1]);
+        }
+        if (hasPoint(a + 1, b) && hasPoint(a, b + 1) && hasPoint(a + 1, b + 1)) {
+          addTri([a + 1, b], [a, b + 1], [a + 1, b + 1]);
+        }
+      }
+    }
+
+    /* ---- 边 ---- */
+    edgeTris = new Map();
+    for (const t of triangles) {
+      for (const ek of t.edges) {
+        if (!edgeTris.has(ek)) edgeTris.set(ek, []);
+        edgeTris.get(ek).push(t.id);
+      }
+    }
+
+    ALL_EDGES = [];
+    FRAME_EDGES = [];
+    framePoints = new Set();
+    edgeTris.forEach(function (tris, ek) {
+      if (tris.length === 2) {
+        ALL_EDGES.push(ek);
+      } else {
+        FRAME_EDGES.push(ek);
+        const ps = edgePoints(ek);
+        framePoints.add(pointKey(ps[0][0], ps[0][1]));
+        framePoints.add(pointKey(ps[1][0], ps[1][1]));
+      }
+    });
+
+    EDGE_LIST = ALL_EDGES.map(function (ek) { return { key: ek, pts: edgePoints(ek) }; });
+    FRAME_EDGE_LIST = FRAME_EDGES.map(function (ek) { return edgePoints(ek); });
+
+    vertexEdges = new Map();
+    for (const ek of ALL_EDGES) {
+      const ps = edgePoints(ek);
+      for (const p of ps) {
+        const k = pointKey(p[0], p[1]);
+        if (!vertexEdges.has(k)) vertexEdges.set(k, []);
+        vertexEdges.get(k).push(ek);
+      }
+    }
+
+    triNeighbors = triangles.map(function (t) {
+      return t.edges.map(function (ek) {
+        const tris = edgeTris.get(ek);
+        return tris.length === 2 ? (tris[0] === t.id ? tris[1] : tris[0]) : -1;
+      });
+    });
+
+    /* ---- 抢地限制用的 BFS 标记数组（用序号标记，避免每次清空） ---- */
+    bfsStamp = new Int32Array(triangles.length);
+    bfsStampCounter = 0;
+  }
+
+  /** 切换棋盘边长（重建几何，坐标原点仍为棋盘中心）。 */
+  function setSize(n) {
+    n = Math.max(MIN_SIDE, Math.min(MAX_SIDE, Math.round(Number(n) || SIDE)));
+    build(n);
+    return SIDE;
+  }
+
+  build(19);
+
+  function findTriangle(p1, p2, p3) {
+    const want = [pointKey(p1[0], p1[1]), pointKey(p2[0], p2[1]), pointKey(p3[0], p3[1])].sort().join(';');
+    for (const t of triangles) {
+      const have = t.pts.map(function (p) { return pointKey(p[0], p[1]); }).sort().join(';');
+      if (have === want) return t.id;
+    }
+    return -1;
+  }
+
+  /* ---- 区域划分：以「棍 + 边框」为墙，对三角格做连通分量 ---- */
+  function computeRegions(sticks) {
+    const reg = new Int16Array(triangles.length);
+    reg.fill(-1);
+    const sizes = [];
+    for (let i = 0; i < triangles.length; i++) {
+      if (reg[i] !== -1) continue;
+      const id = sizes.length;
+      const stack = [i];
+      reg[i] = id;
+      let size = 0;
+      while (stack.length) {
+        const t = stack.pop();
+        size++;
+        const tinfo = triangles[t];
+        for (let e = 0; e < 3; e++) {
+          if (sticks.has(tinfo.edges[e])) continue;
+          const nb = triNeighbors[t][e];
+          if (nb >= 0 && reg[nb] === -1) { reg[nb] = id; stack.push(nb); }
+        }
+      }
+      sizes.push(size);
+    }
+    return { reg: reg, sizes: sizes };
+  }
+  function firstCellOfRegion(reg, r) {
+    for (let i = 0; i < reg.length; i++) if (reg[i] === r) return i;
+    return -1;
+  }
+
+  /* ---- 新开一串的锚点：棋盘边框上的点 + 任何一根已下的棍的端点 ---- */
+  function anchorVertexSet(state) {
+    const set = new Set(framePoints);
+    state.sticks.forEach(function (player, ek) {
+      const ps = edgePoints(ek);
+      set.add(pointKey(ps[0][0], ps[0][1]));
+      set.add(pointKey(ps[1][0], ps[1][1]));
+    });
+    return set;
+  }
+
+  /* ---- 末端（线头）延伸 ---- */
+  function tipExtensions(state) {
+    if (!state.head) return [];
+    const edges = vertexEdges.get(pointKey(state.head[0], state.head[1])) || [];
+    return edges.filter(function (ek) { return !state.sticks.has(ek); });
+  }
+  function anchorMoves(state) {
+    const avs = anchorVertexSet(state);
+    const res = [];
+    for (const ek of ALL_EDGES) {
+      if (state.sticks.has(ek)) continue;
+      const ps = edgePoints(ek);
+      if (avs.has(pointKey(ps[0][0], ps[0][1])) || avs.has(pointKey(ps[1][0], ps[1][1]))) res.push(ek);
+    }
+    return res;
+  }
+
+  /* ---- 抢地限制（规则③）：围完地之后的第一手，不能在对方已经围的地里围出一块地 ----
+   * 计数器 state.sinceClaim：每下一手 +1，每次围完地归 0。
+   * 这手的计数器读数为 1（= 围完地后的第一手）且这次围地落在对方已经围的地里
+   * → 本次围地无效（这手不允许）。平分（两块一样大）不算地（规则④），放行。 */
+  function stealBlocked(state, ek) {
+    if (state.sinceClaim !== 0) return false;   // 计数器读数 ≠ 1 → 不禁
+    const tris = edgeTris.get(ek);
+    const mine = markOf(state.turn);
+    const o1 = state.owner[tris[0]], o2 = state.owner[tris[1]];
+    // 条件②：这次围地落在「别人」已经围的地里（两侧同属另一方才有这个问题）
+    if (o1 === 0 || o1 !== o2 || o1 === mine) return false;
+
+    // 从一侧出发（不跨过新棍），看看能不能绕到另一侧：绕得到 = 没切开 = 不围地
+    const stampA = ++bfsStampCounter;
+    const sideA = [tris[0]];
+    bfsStamp[tris[0]] = stampA;
+    let reached = false;
+    for (let i = 0; i < sideA.length && !reached; i++) {
+      const t = sideA[i];
+      const tinfo = triangles[t];
+      for (let e = 0; e < 3; e++) {
+        const ekey = tinfo.edges[e];
+        if (ekey === ek || state.sticks.has(ekey)) continue;
+        const nb = triNeighbors[t][e];
+        if (nb < 0 || bfsStamp[nb] === stampA) continue;
+        if (nb === tris[1]) { reached = true; break; }
+        bfsStamp[nb] = stampA;
+        sideA.push(nb);
+      }
+    }
+    if (reached) return false;
+
+    // 切开了：算另一侧（两边一样大 = 平分不算地 → 放行）
+    const stampB = ++bfsStampCounter;
+    const sideB = [tris[1]];
+    bfsStamp[tris[1]] = stampB;
+    for (let i = 0; i < sideB.length; i++) {
+      const t = sideB[i];
+      const tinfo = triangles[t];
+      for (let e = 0; e < 3; e++) {
+        const ekey = tinfo.edges[e];
+        if (ekey === ek || state.sticks.has(ekey)) continue;
+        const nb = triNeighbors[t][e];
+        if (nb < 0 || bfsStamp[nb] === stampB) continue;
+        bfsStamp[nb] = stampB;
+        sideB.push(nb);
+      }
+    }
+    return sideA.length !== sideB.length;   // 计数器=1 且在对方地里围出一块地 → 本次围地无效
+  }
+
+  /* ---- 当前生效的落子方式：末端延伸 / 新开一串（互相兜底，保证棋局不会僵死）
+   * 同时剔除被抢地限制（只下一根棍抢地）禁止的落点。 ---- */
+  function filterLegal(state, raw) {
+    const ok = [], blocked = [];
+    for (const ek of raw) {
+      if (stealBlocked(state, ek)) blocked.push(ek);
+      else ok.push(ek);
+    }
+    return { ok: ok, blocked: blocked };
+  }
+  function computeLegal(state) {
+    if (state.over) return { mode: 'none', moves: [], set: new Set() };
+    let mode, f;
+    if (!state.anchorRequired) {
+      mode = 'link';
+      f = filterLegal(state, tipExtensions(state));
+      if (!f.ok.length) {
+        mode = 'anchor';
+        f = filterLegal(state, anchorMoves(state));
+      }
+    } else {
+      mode = 'anchor';
+      f = filterLegal(state, anchorMoves(state));
+      if (!f.ok.length) {
+        mode = 'link';
+        f = filterLegal(state, tipExtensions(state));
+      }
+    }
+    return { mode: mode, moves: f.ok, set: new Set(f.ok) };
+  }
+
+  function whyIllegal(state, ek) {
+    if (state.over) return '对局已经结束，请点击「新对局」。';
+    if (!edgeTris.has(ek)) return '棋盘上没有这个位置。';
+    if (edgeTris.get(ek).length !== 2) return '棍不能压在棋盘边框线上（不能与边界线重合）。';
+    if (state.sticks.has(ek)) return '这里已经有一根棍了，不能重合。';
+    const legal = computeLegal(state);
+    if (legal.set.has(ek)) return null;
+    if (stealBlocked(state, ek)) return '本次围地无效：不能在<b>围完地之后的第一手</b>就在对方已经围的地里围出一块地。请先在别处落一手，再回来围。';
+    return legal.mode === 'link'
+      ? '必须接在上一根棍的<b>末端（线头）</b>上，不能接它的另一端。'
+      : '现在要<b>新开一串</b>：必须与棋盘边框或<b>任何一根已下的棍</b>连在一起。';
+  }
+  function isLegal(state, ek) { return whyIllegal(state, ek) === null; }
+
+  /* ---- 状态 ---- */
+  /** order：参赛顺序（颜色码），默认黑白两人 */
+  function newGameState(order) {
+    const ord = (order === undefined || order === null)
+      ? ['B', 'W']
+      : order.filter(function (c) { return COLORS.indexOf(c) >= 0; });
+    return {
+      sticks: new Map(),                  // 边 -> 颜色码 'B'|'W'|'R'|'G'|'Y'|'L'
+      owner: new Int8Array(triangles.length), // 0 无主 / 1..6 对应黑白红绿紫蓝
+      turn: ord.length ? ord[0] : 'B',
+      order: ord.slice(),                 // 参赛顺序（认输会从中移除）
+      head: null,                         // 当前线头（末端）所在网格点
+      lastStick: null,
+      anchorRequired: true,               // 是否必须「新开一串」
+      over: false,
+      winner: null,
+      moveNo: 0,
+      sinceClaim: 0,                      // 计数器：每下一手 +1，围完地归 0（规则③）
+      log: []
+    };
+  }
+  function cloneState(s) {
+    return {
+      sticks: new Map(s.sticks),
+      owner: Int8Array.from(s.owner),
+      turn: s.turn,
+      order: (s.order || ['B', 'W']).slice(),
+      head: s.head ? [s.head[0], s.head[1]] : null,
+      lastStick: s.lastStick,
+      anchorRequired: s.anchorRequired,
+      over: s.over,
+      winner: s.winner,
+      moveNo: s.moveNo,
+      sinceClaim: s.sinceClaim,
+      log: s.log.map(function (e) { return Object.assign({}, e); })
+    };
+  }
+  /** 各颜色的地数：{B:.., W:.., R:.., G:.., Y:.., L:..} */
+  function score(state) {
+    const counts = { B: 0, W: 0, R: 0, G: 0, Y: 0, L: 0 };
+    for (let i = 0; i < state.owner.length; i++) {
+      const c = colorOfMark(state.owner[i]);
+      if (c) counts[c]++;
+    }
+    return counts;
+  }
+  /** 按地数定胜负：仍在参赛者里唯一的最多者，并列/没人 = 和棋 'D' */
+  function decideWinner(state) {
+    const sc = score(state);
+    let best = null, bestN = -1, tie = false;
+    for (const c of (state.order || [])) {
+      const n = sc[c] || 0;
+      if (n > bestN) { best = c; bestN = n; tie = false; }
+      else if (n === bestN) tie = true;
+    }
+    return (best === null || tie) ? 'D' : best;
+  }
+  /** 下一个行棋方：按参赛顺序轮转 */
+  function nextTurn(order, mover) {
+    const ord = order || [];
+    if (!ord.length) return mover;
+    const i = ord.indexOf(mover);
+    return i < 0 ? ord[0] : ord[(i + 1) % ord.length];
+  }
+
+  /* ---- 落子：包含围地 / 抢地结算 ---- */
+  /** player：棋谱回放时指定行棋方（默认用 state.turn） */
+  function placeMove(state, ek, player) {
+    const prevTurn = state.turn;
+    if (player !== undefined && player !== null) state.turn = player;   // 棋谱回放：按记录上的行棋方来下
+    const bad = whyIllegal(state, ek);
+    if (bad) {
+      state.turn = prevTurn;   // 没下成：回合保持原样（重放失败不能把轮次改乱）
+      return { ok: false, reason: bad };
+    }
+
+    player = state.turn;
+    const legal = computeLegal(state);
+    const anchorSet = legal.mode === 'anchor' ? anchorVertexSet(state) : null;
+    const before = computeRegions(state.sticks);
+
+    state.sticks.set(ek, player);
+    state.lastStick = ek;
+
+    // 更新线头（末端）
+    const ps = edgePoints(ek);
+    if (legal.mode === 'link') {
+      const isOldHead = function (p) { return p[0] === state.head[0] && p[1] === state.head[1]; };
+      state.head = isOldHead(ps[0]) ? ps[1] : ps[0];
+    } else {
+      const inA = function (p) { return anchorSet.has(pointKey(p[0], p[1])); };
+      if (inA(ps[0]) && !inA(ps[1])) state.head = ps[1];
+      else if (inA(ps[1]) && !inA(ps[0])) state.head = ps[0];
+      else state.head = null; // 两端都贴在结构上：没有自由末端，须重新开一串
+    }
+
+    // 围地：一根棍最多把一个区域一分为二，取「比较小的那块」
+    // 规则：两块一样大（平分）→ 不算地（不染色、不计数），但下一步照常走「新开一串」
+    const after = computeRegions(state.sticks);
+    let claimed = null;
+    const splitHappened = after.sizes.length > before.sizes.length;
+    if (splitHappened) {
+      // 找出被切开的父区域的两块子区域
+      const parentOf = new Map();
+      for (let i = 0; i < after.reg.length; i++) {
+        const r = after.reg[i];
+        if (!parentOf.has(r)) parentOf.set(r, before.reg[i]);
+      }
+      const children = new Map();
+      parentOf.forEach(function (parent, r) {
+        if (!children.has(parent)) children.set(parent, []);
+        children.get(parent).push(r);
+      });
+      let pair = null;
+      children.forEach(function (list) { if (list.length === 2) pair = list; });
+      const even = pair !== null && after.sizes[pair[0]] === after.sizes[pair[1]];
+      if (!even) {
+        let best = -1;
+        for (let r = 0; r < after.sizes.length; r++) {
+          const ci = firstCellOfRegion(after.reg, r);
+          const parent = before.reg[ci];
+          if (after.sizes[r] < before.sizes[parent]) {
+            if (best === -1 || after.sizes[r] < after.sizes[best]) best = r;
+          }
+        }
+        if (best >= 0) {
+          const indices = [];
+          const mark = markOf(player);
+          for (let i = 0; i < after.reg.length; i++) {
+            if (after.reg[i] === best) { state.owner[i] = mark; indices.push(i); }
+          }
+          claimed = { count: indices.length, player: player, indices: indices };
+        }
+      }
+    }
+    state.anchorRequired = splitHappened;
+    state.turn = nextTurn(state.order, player);
+    state.moveNo++;
+    // 计数器（规则③）：每下一手 +1；每次围完地之后归 0（平分不算围地，照常 +1）
+    state.sinceClaim = claimed !== null ? 0 : state.sinceClaim + 1;
+    state.log.push({
+      no: state.moveNo, player: player, edge: ek,
+      claimed: claimed ? claimed.count : 0,
+      even: splitHappened && claimed === null ? 1 : 0
+    });
+    return { ok: true, claimed: claimed };
+  }
+
+  function resign(state) {
+    return resignAs(state, state.turn);
+  }
+
+  /**
+   * 指定某一方认输（联机模式下由发起者认输，与轮到谁无关）。
+   * 多人对局：认输 = 退出比赛，其余人继续下；只剩一人时该人胜（两人对局认输即终局、对方获胜）。
+   */
+  function resignAs(state, player) {
+    if (state.over) return { ok: false, reason: '对局已经结束。' };
+    const order = state.order || ['B', 'W'];
+    const idx = order.indexOf(player);
+    state.order = order.filter(function (c) { return c !== player; });
+    if (state.order.length <= 1) {
+      state.over = true;
+      state.winner = state.order.length === 1 ? state.order[0] : 'D';
+    } else if (state.turn === player) {
+      state.turn = state.order[Math.min(idx < 0 ? 0 : idx, state.order.length - 1)];
+    }
+    state.moveNo++;
+    state.log.push({ no: state.moveNo, player: player, resign: true });
+    return { ok: true };
+  }
+
+  /** 手动结束对局：按地数（三角格数）判定仍在参赛者中最多的一方，相同为和 */
+  function endGameAs(state, player) {
+    if (state.over) return { ok: false, reason: '对局已经结束。' };
+    state.over = true;
+    state.winner = decideWinner(state);
+    state.moveNo++;
+    state.log.push({ no: state.moveNo, player: player, end: true });
+    return { ok: true };
+  }
+
+  /** 无处可下即终局（无「停一手」）。返回是否结束。 */
+  function maybeEndGame(state) {
+    if (state.over) return true;
+    if (computeLegal(state).moves.length > 0) return false;
+    state.over = true;
+    state.winner = decideWinner(state);
+    return true;
+  }
+
+  function edgeLabel(ek) {
+    const ps = edgePoints(ek);
+    function pt(p) { return '(' + p[0] + ',' + p[1] + ')'; }
+    return pt(ps[0]) + '→' + pt(ps[1]);
+  }
+
+  return {
+    get SIDE() { return SIDE; },
+    get points() { return points; },
+    get triangles() { return triangles; },
+    get ALL_EDGES() { return ALL_EDGES; },
+    get FRAME_EDGES() { return FRAME_EDGES; },
+    get EDGE_LIST() { return EDGE_LIST; },
+    get FRAME_EDGE_LIST() { return FRAME_EDGE_LIST; },
+    get framePoints() { return framePoints; },
+    get vertexEdges() { return vertexEdges; },
+    MIN_SIDE: MIN_SIDE, MAX_SIDE: MAX_SIDE,
+    setSize: setSize, build: build,
+    COLORS: COLORS, markOf: markOf, colorOfMark: colorOfMark,
+    decideWinner: decideWinner, nextTurn: nextTurn,
+    projX: projX, projY: projY,
+    findTriangle: findTriangle,
+    edgeKey: edgeKey, edgePoints: edgePoints, pointKey: pointKey,
+    computeRegions: computeRegions,
+    anchorVertexSet: anchorVertexSet, tipExtensions: tipExtensions, anchorMoves: anchorMoves,
+    computeLegal: computeLegal, whyIllegal: whyIllegal, isLegal: isLegal,
+    newGameState: newGameState, cloneState: cloneState, score: score,
+    placeMove: placeMove, resign: resign, resignAs: resignAs, endGameAs: endGameAs,
+    maybeEndGame: maybeEndGame, edgeLabel: edgeLabel
+  };
+})();
+
+if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
+</script>
+
+<script>
+'use strict';
+
+/* =====================================================================
+ *  界面层 + 联机层
+ *  棋局事实 = 服务器上的着法序列；本地用同一套 Logic 重放来渲染，
+ *  落子 / 认输 / 悔一手 / 新对局 全部提交给 PHP 服务器（api.php）。
+ * ===================================================================== */
+(function () {
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+
+  let state = Logic.newGameState();
+  let hoverEdge = null;
+  let previewClaim = null;
+  let flash = null;
+  let anim = null;        // 新落子动画 {edge, color, start}
+  let dirty = true;
+  let legalCache = null;
+  let layout = { w: 0, h: 0, s: 1, ox: 0, oy: 0 };
+  let edgePx = new Map();   // 边 -> [x1,y1,x2,y2]
+  let message = { text: '', kind: 'info' };
+  let reviewMode = false;   // 回放 / 棋谱查看模式（由 record.js 控制）
+  let sizeDirty = false;    // 用户正在挑棋盘大小：别让轮询把下拉框改回去
+  let thinkDirty = false;   // 用户正在填思考时间：别让轮询把输入框改回去
+  let waitClosed = false;   // 用户关掉了「等待棋手加入」遮罩：别再弹回来
+
+  /* ---------- 联机状态 ---------- */
+  const net = {
+    room: null,
+    token: null,
+    color: 'S',             // 'B'|'W'|'R'|'G'|'Y'|'L'（坐下的颜色）| 'S'（观众）
+    size: 19,               // 棋盘大小（房间属性，可在房间里改）
+    youId: '',              // 自己的身份标识
+    youName: '',            // 自己的用户名（登录账号）
+    members: [],            // 房间里所有人 [{id, name, role, online}]
+    order: [],              // 参赛顺序（颜色码），按黑白红绿紫蓝
+    turn: null,             // 服务器的行棋轮次（权威；本地重放只做参考）
+    joinRequest: null,      // 上场申请 {color, id, name, votes, mine}
+    moves: [],              // 服务器着法序列（已应用部分）
+    seq: -1,
+    status: 'lobby',        // lobby | waiting | playing | over
+    proposal: null,
+    connected: false,
+    busy: false,
+    expectLoad: false,      // 刚提交了「从这里续下」：同步回来按载入处理
+    thinkLimit: 0,          // 思考时间（秒，0 = 不限制）
+    turnStart: 0,           // 当前行棋方开始思考的时间戳（服务器下发）
+    serverTime: 0,          // 服务器时间戳（算倒计时用）
+    lastNoticeText: null    // 已显示过的房间公告（去重）
+  };
+  const POLL_MS = 600;
+  const SESSION_KEY = 'triangle-net-session';
+  // 客户端构建号：与 api.php 的 CLIENT_BUILD 必须一致（ui-check 会校验）。
+  // 页面还跑着旧 JS 时服务器会拒绝请求并提示——旧脚本不会自己变新，必须刷新页面。
+  const CLIENT_BUILD = 'v5';
+
+  /* 棋子颜色：黑 白 红 绿 紫 蓝（绿色用深绿） */
+  const COLOR_INK = { B: '#000000', W: '#ffffff', R: '#d92b1f', G: '#0a5c22', Y: '#8a2be2', L: '#1f5fd6' };
+  const COLOR_TINT = {
+    B: 'rgba(28,22,16,0.32)', W: 'rgba(255,252,246,0.62)', R: 'rgba(217,43,31,0.26)',
+    G: 'rgba(10,92,34,0.28)', Y: 'rgba(138,43,226,0.28)', L: 'rgba(31,95,214,0.26)'
+  };
+  const COLOR_SHORT = { B: '黑', W: '白', R: '红', G: '绿', Y: '紫', L: '蓝' };
+  const DROP_ANIM_MS = 420;   // 新落子动画时长（毫秒）：3 倍大、10 倍粗 → 迅速缩回正常大小
+
+  function colorName(c) {
+    return COLOR_SHORT[c] ? COLOR_SHORT[c] + '方' : '观众';
+  }
+  function isPlayer() { return !!net.color && net.color !== 'S' && COLOR_INK[net.color] !== undefined; }
+  function chipHtml(c) {
+    return '<span class="chip" style="background:' + (COLOR_INK[c] || '#6b5a41') + '"></span>';
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+
+  function canPlay() {
+    return isPlayer() && net.status === 'playing' && !state.over && state.turn === net.color && !net.proposal && !reviewMode;
+  }
+
+  function getLegal() {
+    if (!legalCache) legalCache = Logic.computeLegal(state);
+    return legalCache;
+  }
+  function invalidate() { legalCache = null; }
+
+  /* ---------- 电脑代下：α-β 枚举搜索（可设定枚举深度） ----------
+   * 算法：迭代加深（枚举 1..深度 步）+ minimax + α-β 剪枝 + 候选着法裁剪。
+   * · 评估：我的地数 − 最强对手的地数（多人局也按「对付所有人」的保守估计）；
+   * · 新开一串时合法落点动辄上千，先按「贴线头 / 贴已有结构」的启发只留前几个候选；
+   * · 另设节点数 / 时间预算：再深的枚举也秒级出招，绝不把页面卡死。 */
+  const AutoPlay = (function () {
+    const MAX_CANDIDATES = 12;    // 每个节点最多枚举几个候选着法
+    const NODE_BUDGET = 2000;     // 一次思考最多展开的节点数
+    const TIME_BUDGET_MS = 1500;  // 一次思考最多占用的毫秒数
+
+    let nodes = 0, deadline = 0, stopped = false;
+
+    /** 局面评估：正数 = 我好，负数 = 对手好；终局直接给大分数。 */
+    function evaluate(st, me) {
+      if (st.over) {
+        if (st.winner === me) return 1e6;
+        if (!st.winner || st.winner === 'D') return 0;
+        return -1e6;
+      }
+      const sc = Logic.score(st);
+      let opp = 0;
+      const order = st.order || [];
+      for (let i = 0; i < order.length; i++) {
+        if (order[i] !== me && (sc[order[i]] || 0) > opp) opp = sc[order[i]] || 0;
+      }
+      return (sc[me] || 0) - opp;
+    }
+
+    /** 候选着法：合法着法太多时按局部启发裁剪（贴线头、贴着已有棍的端点优先）。 */
+    function candidates(st) {
+      const moves = Logic.computeLegal(st).moves;
+      if (moves.length <= MAX_CANDIDATES) return moves;
+      const touch = new Map();
+      st.sticks.forEach(function (player, ek) {
+        const ps = Logic.edgePoints(ek);
+        for (let i = 0; i < 2; i++) {
+          const k = Logic.pointKey(ps[i][0], ps[i][1]);
+          touch.set(k, (touch.get(k) || 0) + 1);
+        }
+      });
+      const headK = st.head ? Logic.pointKey(st.head[0], st.head[1]) : null;
+      const scored = [];
+      for (let i = 0; i < moves.length; i++) {
+        const ek = moves[i];
+        const ps = Logic.edgePoints(ek);
+        const k0 = Logic.pointKey(ps[0][0], ps[0][1]);
+        const k1 = Logic.pointKey(ps[1][0], ps[1][1]);
+        let s = (touch.get(k0) || 0) + (touch.get(k1) || 0);
+        if (headK && (k0 === headK || k1 === headK)) s += 6;
+        scored.push([s, ek]);
+      }
+      scored.sort(function (a, b) { return b[0] - a[0]; });
+      return scored.slice(0, MAX_CANDIDATES).map(function (x) { return x[1]; });
+    }
+
+    /** minimax + α-β：轮到我 = 最大化评估，轮到任何对手 = 最小化评估。 */
+    function search(st, me, depth, alpha, beta) {
+      nodes++;
+      if (nodes > NODE_BUDGET || Date.now() > deadline) stopped = true;
+      if (depth <= 0 || st.over || stopped) return evaluate(st, me);
+      const moves = candidates(st);
+      if (!moves.length) return evaluate(st, me);
+      const maximizing = st.turn === me;
+      let best = maximizing ? -Infinity : Infinity;
+      let seen = 0;
+      for (let i = 0; i < moves.length; i++) {
+        const next = Logic.cloneState(st);
+        const r = Logic.placeMove(next, moves[i]);
+        if (!r.ok) continue;
+        seen++;
+        Logic.maybeEndGame(next);
+        const v = search(next, me, depth - 1, alpha, beta);
+        if (maximizing) {
+          if (v > best) best = v;
+          if (best > alpha) alpha = best;
+        } else {
+          if (v < best) best = v;
+          if (best < beta) beta = best;
+        }
+        if (beta <= alpha || stopped) break;
+      }
+      return seen === 0 ? evaluate(st, me) : best;
+    }
+
+    /** 迭代加深找最优着法：枚举到 depth 步为止，返回搜完的最后一层的最优着法。 */
+    function bestMove(state, me, depth, timeBudgetMs) {
+      const d0 = Math.max(1, Math.min(5, Math.round(Number(depth) || 2)));
+      nodes = 0;
+      deadline = Date.now() + (timeBudgetMs || TIME_BUDGET_MS);
+      stopped = false;
+      const root = candidates(state);
+      if (!root.length) return null;
+      let best = root[0];
+      for (let d = 1; d <= d0; d++) {
+        let layerBest = null, layerVal = -Infinity, alpha = -Infinity;
+        for (let i = 0; i < root.length; i++) {
+          const next = Logic.cloneState(state);
+          const r = Logic.placeMove(next, root[i]);
+          if (!r.ok) continue;
+          Logic.maybeEndGame(next);
+          const v = search(next, me, d - 1, alpha, Infinity);
+          if (v > layerVal) { layerVal = v; layerBest = root[i]; }
+          if (v > alpha) alpha = v;
+          if (stopped) break;
+        }
+        if (stopped) break;                 // 这层没搜完：沿用上一层的结果
+        if (layerBest !== null) best = layerBest;
+      }
+      return best;
+    }
+
+    return { bestMove: bestMove, evaluate: evaluate, candidates: candidates };
+  })();
+
+  /* 电脑代下开关：开 = 轮到我就自动落子；再点「手动接管」关掉 */
+  const ai = { on: false, timer: null, busy: false, fails: 0 };
+
+  /* ---------- 画布几何 ---------- */
+  function toPx(a, b) {
+    return [layout.ox + Logic.projX(a, b) * layout.s, layout.oy + Logic.projY(a, b) * layout.s];
+  }
+  function resize() {
+    const cssW = Math.max(280, canvas.clientWidth || 640);
+    const cssH = Math.max(240, canvas.clientHeight || Math.round(cssW * 33 / 38));
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const p of Logic.points) {
+      const x = Logic.projX(p[0], p[1]), y = Logic.projY(p[0], p[1]);
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    const pad = Math.min(cssW, cssH) * 0.055;
+    const s = Math.min((cssW - 2 * pad) / (maxX - minX), (cssH - 2 * pad) / (maxY - minY));
+    layout = {
+      w: cssW, h: cssH, s: s,
+      ox: (cssW - (maxX - minX) * s) / 2 - minX * s,
+      oy: (cssH - (maxY - minY) * s) / 2 - minY * s
+    };
+    edgePx = new Map();
+    for (const e of Logic.EDGE_LIST) {
+      const a = toPx(e.pts[0][0], e.pts[0][1]), b = toPx(e.pts[1][0], e.pts[1][1]);
+      edgePx.set(e.key, [a[0], a[1], b[0], b[1]]);
+    }
+    dirty = true;
+  }
+  window.addEventListener('resize', resize);
+
+  function roundRectPath(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+  function strokeLine(x0, y0, x1, y1) {
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  }
+  function addEdgeToPath(ek) {
+    const g = edgePx.get(ek);
+    if (!g) return;
+    ctx.moveTo(g[0], g[1]);
+    ctx.lineTo(g[2], g[3]);
+  }
+  function fillTrianglePath(t) {
+    const p0 = toPx(t.pts[0][0], t.pts[0][1]);
+    const p1 = toPx(t.pts[1][0], t.pts[1][1]);
+    const p2 = toPx(t.pts[2][0], t.pts[2][1]);
+    ctx.beginPath();
+    ctx.moveTo(p0[0], p0[1]);
+    ctx.lineTo(p1[0], p1[1]);
+    ctx.lineTo(p2[0], p2[1]);
+    ctx.closePath();
+  }
+
+  /* ---------- 绘制 ---------- */
+  function draw() {
+    const w = layout.w, h = layout.h, s = layout.s;
+    ctx.clearRect(0, 0, w, h);
+
+    // 木质底板
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, '#eec489');
+    g.addColorStop(0.55, '#e0b06a');
+    g.addColorStop(1, '#d19c4f');
+    roundRectPath(ctx, 0, 0, w, h, Math.max(10, Math.min(w, h) * 0.02));
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    // 六边形棋盘
+    const corners = [[Logic.SIDE, 0], [0, Logic.SIDE], [-Logic.SIDE, Logic.SIDE],
+                     [-Logic.SIDE, 0], [0, -Logic.SIDE], [Logic.SIDE, -Logic.SIDE]];
+    ctx.save();
+    ctx.beginPath();
+    corners.forEach(function (c, i) {
+      const p = toPx(c[0], c[1]);
+      if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]);
+    });
+    ctx.closePath();
+    const hg = ctx.createLinearGradient(0, 0, w, h);
+    hg.addColorStop(0, '#f2cd93');
+    hg.addColorStop(0.5, '#e6b878');
+    hg.addColorStop(1, '#d8a45c');
+    ctx.fillStyle = hg;
+    ctx.fill();
+    // 木纹
+    ctx.clip();
+    ctx.globalAlpha = 0.055;
+    ctx.strokeStyle = '#7a4f18';
+    for (let i = 0; i < 14; i++) {
+      const yy = (i + 0.5) * h / 14;
+      ctx.beginPath();
+      ctx.moveTo(0, yy);
+      ctx.bezierCurveTo(w * 0.32, yy - 6, w * 0.68, yy + 7, w, yy - 1);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // 已归属的地盘（黑白红绿紫蓝各染各的色）
+    for (let i = 0; i < Logic.triangles.length; i++) {
+      const own = state.owner[i];
+      if (!own) continue;
+      fillTrianglePath(Logic.triangles[i]);
+      ctx.fillStyle = COLOR_TINT[Logic.colorOfMark(own)] || 'rgba(120,120,120,0.22)';
+      ctx.fill();
+    }
+
+    // 悬停预览：将要围得的地
+    if (previewClaim && previewClaim.length) {
+      const t = (Math.sin(performance.now() / 220) + 1) / 2;
+      ctx.fillStyle = 'rgba(255,196,74,' + (0.30 + 0.25 * t) + ')';
+      for (let i = 0; i < previewClaim.length; i++) {
+        fillTrianglePath(Logic.triangles[previewClaim[i]]);
+        ctx.fill();
+      }
+    }
+
+    // 围地闪光
+    if (flash) {
+      const k = (performance.now() - flash.start) / 950;
+      if (k < 1) {
+        ctx.fillStyle = 'rgba(255,214,120,' + (0.55 * (1 - k)) + ')';
+        for (let i = 0; i < flash.indices.length; i++) {
+          fillTrianglePath(Logic.triangles[flash.indices[i]]);
+          ctx.fill();
+        }
+      } else {
+        flash = null;
+      }
+    }
+
+    // 网格线（内部细线，灰色）
+    ctx.strokeStyle = 'rgba(120,120,120,0.62)';
+    ctx.lineWidth = Math.max(1, s * 0.028);
+    ctx.beginPath();
+    for (const e of Logic.EDGE_LIST) addEdgeToPath(e.key);
+    ctx.stroke();
+
+    // 棋盘边框（灰色、更粗，且棍不可压在上面）
+    ctx.strokeStyle = 'rgba(85,85,85,0.95)';
+    ctx.lineWidth = Math.max(2, s * 0.10);
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    corners.forEach(function (c, i) {
+      const p = toPx(c[0], c[1]);
+      if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]);
+    });
+    ctx.closePath();
+    ctx.stroke();
+
+    // 棋子（棍）：比网格线粗——粗细为原来的 2 倍，黑白红绿紫蓝各用各的颜色
+    const sticksByColor = {};
+    state.sticks.forEach(function (player, ek) {
+      (sticksByColor[player] = sticksByColor[player] || []).push(ek);
+    });
+    ctx.lineCap = 'round';
+    const stickW = Math.max(2, s * 0.056);
+    Object.keys(sticksByColor).forEach(function (c) {
+      ctx.beginPath();
+      sticksByColor[c].forEach(addEdgeToPath);
+      ctx.strokeStyle = COLOR_INK[c] || '#000000';
+      ctx.lineWidth = stickW;
+      ctx.stroke();
+    });
+
+    // 刚落下的棍：动画——该颜色的棍从 3 倍大、10 倍粗迅速缩回正常大小
+    // （棍的中点始终不动，位置不变；ease-out 缩放，连贯自然）
+    if (anim) {
+      const k = (performance.now() - anim.start) / DROP_ANIM_MS;
+      if (k >= 1) {
+        anim = null;   // 动画结束：回到正常大小（上面已按正常粗细画过这根棍）
+      } else {
+        const g = edgePx.get(anim.edge);
+        if (g) {
+          const ease = 1 - Math.pow(1 - k, 3);       // easeOutCubic：先快后缓，稳稳落回原大小
+          const kLen = 3 + (1 - 3) * ease;           // 长度：3 倍 → 1 倍
+          const kW = 10 + (1 - 10) * ease;           // 粗细：10 倍 → 1 倍
+          const mx = (g[0] + g[2]) / 2, my = (g[1] + g[3]) / 2;
+          ctx.beginPath();
+          ctx.moveTo(mx + (g[0] - mx) * kLen, my + (g[1] - my) * kLen);
+          ctx.lineTo(mx + (g[2] - mx) * kLen, my + (g[3] - my) * kLen);
+          ctx.strokeStyle = COLOR_INK[anim.color] || '#000000';
+          ctx.lineWidth = Math.max(1, stickW * kW);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 悬停预览（待下的半透明棍）：灰色包边
+    if (hoverEdge && !state.over && edgePx.has(hoverEdge)) {
+      ctx.beginPath();
+      addEdgeToPath(hoverEdge);
+      ctx.strokeStyle = 'rgba(122,122,122,0.75)';
+      ctx.lineWidth = stickW + 3.5;
+      ctx.stroke();
+      ctx.beginPath();
+      addEdgeToPath(hoverEdge);
+      ctx.strokeStyle = state.turn === 'B' ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.62)';
+      ctx.lineWidth = stickW;
+      ctx.stroke();
+    }
+  }
+
+  function frame() {
+    if (dirty || hoverEdge || flash || previewClaim || anim) {
+      draw();
+      dirty = false;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- 交互 ---------- */
+  function distToSeg(px, py, ax, ay, bx, by) {
+    const dx = bx - ax, dy = by - ay;
+    const L2 = dx * dx + dy * dy;
+    let t = L2 ? ((px - ax) * dx + (py - ay) * dy) / L2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+  }
+  function pointToEdge(evt) {
+    const rect = canvas.getBoundingClientRect();
+    const px = evt.clientX - rect.left, py = evt.clientY - rect.top;
+    let best = null, bestD = Infinity;
+    for (const e of Logic.EDGE_LIST) {
+      const g = edgePx.get(e.key);
+      const d = distToSeg(px, py, g[0], g[1], g[2], g[3]);
+      if (d < bestD) { bestD = d; best = e.key; }
+    }
+    return bestD <= layout.s * 0.42 ? best : null;
+  }
+
+  canvas.addEventListener('mousemove', function (evt) {
+    const playable = canPlay();
+    const e = playable ? pointToEdge(evt) : null;
+    const legal = e && getLegal().set.has(e);
+    const same = e === hoverEdge;
+    hoverEdge = legal ? e : null;
+    previewClaim = null;
+    if (hoverEdge) {
+      const sim = Logic.cloneState(state);
+      const r = Logic.placeMove(sim, hoverEdge);
+      if (r.ok && r.claimed) previewClaim = r.claimed.indices;
+    }
+    if (!same || previewClaim) dirty = true;
+    canvas.style.cursor = legal ? 'pointer' : 'default';
+  });
+  canvas.addEventListener('mouseleave', function () {
+    hoverEdge = null; previewClaim = null; dirty = true;
+  });
+
+  canvas.addEventListener('click', function (evt) {
+    if (reviewMode) { setMessage('正在回放 / 查看棋谱。点「回到对局」返回当前对局。', 'warn'); return; }
+    if (net.status === 'lobby') return;
+    if (!isPlayer()) {
+      setMessage('你是<b>观众</b>（身份 <b>' + esc(net.youId) + '</b>）：可以看棋和翻棋谱，但不能落子。'
+        + '想下棋就在右侧「座位」里<b>点空位坐下</b>（空位可直接接替上场）。', 'warn');
+      return;
+    }
+    if (net.status === 'waiting') {
+      setMessage('对手还没有加入。把房间号 <b>' + net.room + '</b> 或邀请链接发给他吧。', 'warn');
+      return;
+    }
+    if (state.over) { setMessage('对局已经结束。点「新对局」可以再来一局（需要所有在场玩家同意）。', 'warn'); return; }
+    if (net.proposal) { setMessage('有提议等待回应，请先点「同意 / 拒绝」。', 'warn'); return; }
+    if (state.turn !== net.color) { setMessage('还没轮到你行棋，现在是' + colorName(state.turn) + '的回合。', 'warn'); return; }
+    const e = pointToEdge(evt);
+    if (!e) return;
+    const bad = Logic.whyIllegal(state, e);
+    if (bad) { setMessage(bad, 'warn'); return; }
+    if (ai.on) setAutoPlay(false);   // 自己动手落子 = 手动接管回人工下
+    sendMove(e);
+  });
+
+  /* ---------- 着法重放（与服务器保持一致） ---------- */
+  /** 把一个颜色放进行棋轮次（与服务器 takeSeat 的轮次记账一致：黑白红绿紫蓝排序）。 */
+  function joinRotation(color) {
+    if (!color) return;
+    if (state.order.indexOf(color) < 0) {
+      state.order.push(color);
+      state.order.sort(function (a, b) { return Logic.COLORS.indexOf(a) - Logic.COLORS.indexOf(b); });
+    }
+    if (state.order.indexOf(state.turn) < 0) state.turn = state.order[0] || 'B';
+  }
+  function applyEntry(e, animate) {
+    if (e.j) { joinRotation(e.p); return; }   // 重新加入行棋轮次（中途上场 / 认输后坐回来），不是棋盘上的着法
+    if (e.r) { Logic.resignAs(state, e.p); return; }
+    if (e.end) { Logic.endGameAs(state, e.p); return; }
+    const r = Logic.placeMove(state, e.e, e.p);   // 带上记录里的行棋方（多人各是各的颜色）
+    if (!r.ok) {
+      console.error('着法重放失败：', e, r);
+      return;
+    }
+    maybeEndGame();
+    if (r.claimed) flash = { indices: r.claimed.indices, start: performance.now() };
+    // 新落下的棍：3 倍大、10 倍粗迅速缩回正常大小的动画（取代以前的金色高亮）
+    if (animate) anim = { edge: e.e, color: state.sticks.get(e.e) || e.p, start: performance.now() };
+  }
+
+  /** 清空棋子：把棋盘上的棍 / 地盘 / 残留动画全部清掉（开始新对局时的「清空棋子」一步）。 */
+  function clearBoard() {
+    state = Logic.newGameState(net.order.length ? net.order : undefined);
+    hoverEdge = null;
+    previewClaim = null;
+    flash = null;
+    anim = null;
+    invalidate();
+    dirty = true;
+  }
+
+  function rebuild(moves, order) {
+    anim = null;
+    state = Logic.newGameState(order);
+    for (let i = 0; i < moves.length; i++) applyEntry(moves[i], false);   // 整体重放不播动画
+    invalidate();
+    dirty = true;
+  }
+  /** 轮次以服务器为准：中途上场 / 让座会改变行棋轮次，只靠本地重放推不出来。 */
+  function adoptServerTurn(data) {
+    if (reviewMode || !data) return;
+    if (Array.isArray(data.order)) state.order = data.order.slice();
+    if (data.turn) state.turn = data.turn;
+  }
+
+  function maybeEndGame() {
+    return Logic.maybeEndGame(state);
+  }
+
+  /* ---------- 网络 ---------- */
+  /** 旧客户端自愈：提示后自动刷新页面换上新代码（房间身份在 sessionStorage，刷新后自动回房）。 */
+  function staleClient(html) {
+    setMessage(html + ' 正在自动刷新页面……', 'warn');
+    if (typeof location.reload === 'function') {
+      setTimeout(function () { location.reload(); }, 1500);
+    }
+  }
+
+  async function api(action, payload) {
+    const body = Object.assign({ action: action, room: net.room, token: net.token, ver: CLIENT_BUILD }, payload || {});
+    const res = await fetch('api.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data && data.stale) staleClient(data.error);   // 浏览器还在跑旧版页面脚本
+    return data;
+  }
+
+  function sameMove(a, b) {
+    if (!a || !b) return false;
+    return (a.p === b.p) && (a.e === b.e) && (!a.r) === (!b.r)
+      && (!a.end) === (!b.end) && (!a.j) === (!b.j);
+  }
+
+  function sync(data) {
+    if (!data || data.ok === false) return;
+    const wasLoad = net.expectLoad;
+    net.expectLoad = false;
+    net.connected = true;
+    net.room = data.room;
+    net.color = data.you;
+    net.youId = data.youId || '';
+    net.youName = data.youName || '';
+    net.members = data.members || [];
+    net.order = data.order || [];
+    net.turn = data.turn || null;
+    net.joinRequest = data.joinRequest || null;
+    net.seq = data.seq;
+    net.status = data.status;
+    net.proposal = data.proposal;
+    net.thinkLimit = data.thinkLimit || 0;
+    net.turnStart = data.turnStart || 0;
+    net.serverTime = data.serverTime || Math.floor(Date.now() / 1000);
+
+    // 棋盘大小变了：换几何重新开局（坐标原点始终在棋盘中心）
+    if (data.size && data.size !== net.size) {
+      net.size = data.size;
+      sizeDirty = false;
+      Logic.setSize(net.size);
+      resize();
+      hoverEdge = null;
+      previewClaim = null;
+      flash = null;
+      anim = null;
+      net.moves = data.moves || [];
+      clearBoard();                 // 清空棋子：上一局 / 回放遗留的棍一根都不留
+      rebuild(net.moves, data.order);
+      adoptServerTurn(data);
+      if (window.RecordBridge && typeof window.RecordBridge.resetReview === 'function') {
+        window.RecordBridge.resetReview();
+      }
+      renderNet();
+      renderProposal();
+      renderPanel();
+      updateLiveRecord(true);
+      setMessage('棋盘大小已改为 <b>' + net.size + ' 路</b>，新对局开始。' + nextInstruction(), 'info');
+      return;
+    }
+
+    const moves = data.moves || [];
+    const prevLen = net.moves.length;
+    let samePrefix = moves.length >= prevLen;
+    if (samePrefix) {
+      for (let i = 0; i < prevLen; i++) {
+        if (!sameMove(net.moves[i], moves[i])) { samePrefix = false; break; }
+      }
+    }
+
+    let change = 'none';
+    let sawEnd = false;   // 新应用的着法里有「手动终局」→ 全员自动回放棋谱
+    // 复盘 / 棋谱回放还没播完，服务器上的对局却已经换掉（新对局 / 悔棋 / 载入）：
+    // 先结束回放，再走下面的「清空棋子 → 重放」，棋盘上不会留下上一局的棋子
+    if (reviewMode && !samePrefix
+        && window.RecordBridge && typeof window.RecordBridge.resetReview === 'function') {
+      window.RecordBridge.resetReview();
+    }
+    if (reviewMode) {
+      // 正在回放 / 查看棋谱：不动当前显示的局面，只记下服务器着法；
+      // 点「回到对局」时 restoreLive 会按 net.moves 整体重放
+      change = 'none';
+    } else if (samePrefix) {
+      if (moves.length > prevLen) {
+        for (let i = prevLen; i < moves.length; i++) {
+          if (moves[i] && moves[i].end) sawEnd = true;
+          applyEntry(moves[i], i === moves.length - 1);   // 只给最新一手播落子动画
+        }
+        change = 'move';
+      }
+    } else {
+      clearBoard();                 // 清空棋子：先把棋盘上的遗留棋子清干净
+      rebuild(moves, data.order);
+      change = moves.length === 0 ? 'reset' : (moves.length < prevLen ? 'undo' : 'resync');
+    }
+
+    net.moves = moves;
+    adoptServerTurn(data);   // 行棋轮次 / 参赛顺序以服务器为准（三人以上对局的关键）
+    invalidate();
+    dirty = true;
+    renderNet();
+    renderProposal();
+    renderPanel();
+    updateLiveRecord(false);
+    if (wasLoad) change = 'load';
+    if (change !== 'none') refreshMessage(change);
+    showNotice(data.notice);
+    if (sawEnd && window.RecordBridge && typeof window.RecordBridge.onLiveEnd === 'function') {
+      window.RecordBridge.onLiveEnd();   // 手动结束对局生效：回放整盘 + 棋谱文本
+    }
+    scheduleAiMove();   // 电脑代下开着：轮到我就接着自动下
+  }
+
+  /** 房间公告（掉线下场 / 超时踢下场 / 提议作废…）：同一条只弹一次消息。 */
+  function showNotice(notice) {
+    if (!notice || !notice.text) return;
+    if (net.lastNoticeText === notice.text) return;
+    net.lastNoticeText = notice.text;
+    setMessage('📢 ' + esc(notice.text), 'info');
+  }
+
+  async function poll() {
+    if (!net.room || !net.token || net.busy) return;
+    net.busy = true;
+    try {
+      const data = await api('state');
+      if (data && data.ok) {
+        sync(data);
+      } else if (data && data.error) {
+        // 房间 / 身份失效才退回大厅；临时性错误只提示，不踢出
+        if (/不存在|身份/.test(data.error)) {
+          leaveRoom(data.error);
+        } else {
+          setMessage(data.error, 'warn');
+        }
+      }
+    } catch (e) {
+      net.connected = false;
+      renderNet();
+    } finally {
+      net.busy = false;
+    }
+  }
+
+  async function sendMove(edge) {
+    try {
+      const data = await api('move', { edge: edge });
+      if (!data.ok) { setMessage(data.error, 'warn'); return; }
+      sync(data);
+    } catch (e) {
+      setMessage('网络异常，落子没有提交成功（请检查连接后重试）。', 'warn');
+    }
+  }
+
+  /* ---------- 电脑代下：开启后一直代替玩家落子，直到点「手动接管」 ---------- */
+  function readAiDepth() {
+    const el = document.getElementById('aiDepthInput');
+    let d = parseInt(el && el.value, 10);
+    if (!Number.isFinite(d)) d = 2;
+    return Math.max(1, Math.min(5, d));
+  }
+
+  function setAutoPlay(on, quiet) {
+    ai.on = !!on;
+    if (ai.timer) { clearTimeout(ai.timer); ai.timer = null; }
+    if (!quiet) {
+      setMessage(ai.on
+        ? '电脑代下已开启（枚举深度 <b>' + readAiDepth() + '</b> 步）：轮到你时由电脑自动落子，'
+          + '直到再点「<b>手动接管</b>」收回自己下。'
+        : '已<b>手动接管</b>：现在由你自己下棋。', 'info');
+    }
+    if (ai.on) scheduleAiMove();
+    renderPanel();
+  }
+
+  function scheduleAiMove() {
+    if (!ai.on || ai.timer || ai.busy) return;
+    if (!canPlay()) return;
+    ai.timer = setTimeout(runAiMove, 380);
+  }
+
+  async function runAiMove() {
+    ai.timer = null;
+    if (!ai.on || ai.busy || !canPlay()) return;
+    ai.busy = true;
+    try {
+      const edge = AutoPlay.bestMove(state, net.color, readAiDepth());
+      if (!edge || !ai.on || !canPlay()) return;
+      const data = await api('move', { edge: edge });
+      if (!data.ok) {
+        ai.fails++;
+        if (ai.fails >= 3) {
+          setAutoPlay(false);
+          setMessage('电脑代下连续几次都没能落子，已切回<b>手动下棋</b>：' + data.error, 'warn');
+        } else {
+          setMessage(data.error, 'warn');
+        }
+        return;
+      }
+      ai.fails = 0;
+      sync(data);
+    } catch (e) {
+      ai.fails++;
+      if (ai.fails >= 3) {
+        setAutoPlay(false);
+        setMessage('网络异常，电脑代下已切回<b>手动下棋</b>。', 'warn');
+      } else {
+        setMessage('网络异常，电脑这一步没有提交成功（稍后自动重试）。', 'warn');
+      }
+    } finally {
+      ai.busy = false;
+      scheduleAiMove();
+    }
+  }
+
+  async function sendResign() {
+    try {
+      const data = await api('resign');
+      if (!data.ok) { setMessage(data.error, 'warn'); return; }
+      sync(data);
+    } catch (e) {
+      setMessage('网络异常，认输请求没有送达。', 'warn');
+    }
+  }
+
+  async function sendPropose(type) {
+    try {
+      const data = await api('propose', { type: type });
+      if (!data.ok) { setMessage(data.error, 'warn'); return; }
+      sync(data);
+      setMessage('已提议「' + proposalName(type) + '」，等待<b>所有在场玩家</b>同意…', 'info');
+    } catch (e) {
+      setMessage('网络异常，提议没有送达。', 'warn');
+    }
+  }
+
+  /** 下来：主动让出座位（棋局保留，别人可以坐上来接替继续下）。 */
+  async function sendStand() {
+    try {
+      const data = await api('stand');
+      if (!data.ok) { setMessage(data.error, 'warn'); return; }
+      sync(data);
+      setMessage('你已<b>下来</b>（让出座位）：棋局原样保留，任何人坐上这个空位都能接着下。'
+        + '想重新上场就在「座位」里点那个空位；想退出比赛请先「认输」。', 'info');
+    } catch (e) {
+      setMessage('网络异常，没能下来（请检查连接后重试）。', 'warn');
+    }
+  }
+
+  /** 设置思考时间（秒，0 = 不限制）。 */
+  async function sendThink(seconds) {
+    try {
+      const data = await api('think', { seconds: seconds });
+      if (!data.ok) { setMessage(data.error, 'warn'); return; }
+      thinkDirty = false;
+      sync(data);
+      setMessage(seconds > 0
+        ? '思考时间已设为 <b>' + seconds + ' 秒</b>：轮到的一方超时会被自动请下场（棋局保留，别人可接替）。'
+        : '已取消思考时间限制（不限时）。', 'info');
+    } catch (e) {
+      setMessage('网络异常，思考时间没有设置成功。', 'warn');
+    }
+  }
+
+  async function sendAnswer(accept) {
+    const proposal = net.proposal;
+    try {
+      const data = await api('answer', { accept: accept });
+      if (!data.ok) { setMessage(data.error, 'warn'); return; }
+      sync(data);
+      if (proposal && proposal.by === net.color) {
+        setMessage('已撤销你的提议。' + nextInstruction(), 'info');
+      } else if (!accept && proposal && proposal.type === 'end') {
+        // 不同意结束对局：对局继续，按本该轮到的顺序转给第一个拒绝的人继续下
+        setMessage('你<b>不同意结束对局</b>：对局继续，<b>按本该轮到的顺序转给第一个拒绝的人</b>继续下。'
+          + nextInstruction(), 'info');
+      } else {
+        setMessage(accept
+          ? '你同意了这条提议（还需等其他在场玩家表态）。' + nextInstruction()
+          : '你拒绝了这条提议，提议已作废。' + nextInstruction(), 'info');
+      }
+    } catch (e) {
+      setMessage('网络异常，回应没有送达。', 'warn');
+    }
+  }
+
+  /* ---------- 大厅：建房 / 加入 ---------- */
+  /** 纯文本显示场合的格式转换：引号里的 <b></b> 不会被识别，统一改成【】强调，其余标签去掉。 */
+  function plainFormat(s) {
+    return String(s == null ? '' : s)
+      .replace(/<b>([\s\S]*?)<\/b>/gi, '【$1】')
+      .replace(/<[^>]+>/g, '');
+  }
+  function setLobbyMsg(text, info) {
+    const el = document.getElementById('lobbyMsg');
+    el.textContent = plainFormat(text || '');
+    el.className = 'lobby-msg' + (info ? ' info' : '');
+  }
+  function showLobby(msg, info) {
+    document.getElementById('lobby').hidden = false;
+    net.status = 'lobby';
+    if (msg !== undefined) setLobbyMsg(msg, info);
+    renderPanel();
+  }
+  function hideLobby() {
+    document.getElementById('lobby').hidden = true;
+  }
+
+  function saveSession() {
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ room: net.room, token: net.token }));
+    } catch (e) { /* 忽略 */ }
+  }
+  function loadSession() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function clearSession() {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* 忽略 */ }
+  }
+
+  function inviteUrl() {
+    return location.origin + location.pathname + '?room=' + (net.room || '');
+  }
+
+  /* ---------- 复制到剪贴板：电脑端直接复制（绝不再弹窗），手机端维持弹窗手动复制 ---------- */
+  function isMobileDevice() {
+    try {
+      const nav = navigator || {};
+      if (nav.userAgentData && typeof nav.userAgentData.mobile === 'boolean') {
+        return nav.userAgentData.mobile;
+      }
+      const ua = String(nav.userAgent || '');
+      if (/Android|iPhone|iPad|iPod|Mobile|Windows Phone|HarmonyOS/i.test(ua)) return true;
+      // iPadOS 报告成 Macintosh，但有真实多点触控
+      if (/Macintosh/.test(ua) && (nav.maxTouchPoints || 0) > 1) return true;
+      return false;
+    } catch (e) { return false; }
+  }
+
+  /** 电脑端：直接写剪贴板；不行就用隐藏 textarea + execCommand 复制。都失败才提示手动复制（不弹窗）。 */
+  function copyOnDesktop(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  function copyInvite() {
+    const url = inviteUrl();
+    const done = function () { setMessage('邀请链接已复制：<b>' + url + '</b>', 'info'); };
+    const manual = function () {
+      setMessage('自动复制没有成功，请手动复制这个地址发给对手：<b>' + url + '</b>', 'warn');
+    };
+    if (isMobileDevice()) {
+      // 手机端维持原样：弹窗显示地址，手动复制
+      try {
+        window.prompt('复制此地址发给对手：', url);
+        done();
+      } catch (e) { manual(); }
+      return;
+    }
+    // 电脑端：直接复制到剪贴板，不再弹窗
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () {
+        try { copyOnDesktop(url) ? done() : manual(); } catch (e) { manual(); }
+      });
+    } else {
+      try { copyOnDesktop(url) ? done() : manual(); } catch (e) { manual(); }
+    }
+  }
+
+  function enterRoom(data) {
+    net.room = data.room;
+    net.token = data.token;
+    net.color = data.you;
+    net.youId = data.youId || '';
+    net.youName = data.youName || '';
+    net.size = data.size || 19;
+    sizeDirty = false;
+    waitClosed = false;
+    Logic.setSize(net.size);
+    resize();
+    net.moves = [];
+    rebuild([]);
+    saveSession();
+    hideLobby();
+    sync(data);
+    const nameTag = net.youId
+      ? '（用户 <b>' + esc(net.youName || '—') + '</b> <span class="idnote">' + esc(net.youId) + '</span>）'
+      : '';
+    if (isPlayer()) {
+      setMessage('已回到房间 <b>' + data.room + '</b>，你坐在<b>' + colorName(net.color) + '</b>位上' + nameTag + '。' + nextInstruction(), 'info');
+    } else if (net.status === 'waiting') {
+      setMessage('已创建房间 <b>' + data.room + '</b>' + nameTag + '。把房间号发给别人，'
+        + '进入房间后<b>在右侧选颜色坐下</b>就开始对局。', 'info');
+    } else {
+      setMessage('已进入房间 <b>' + data.room + '</b>' + nameTag + '，你现在是<b>观众</b>：'
+        + '想下棋就在右侧<b>选空位坐下</b>（对局进行中也可加入，但是需要所有在场玩家同意）。' + nextInstruction(), 'info');
+    }
+    renderNet();
+  }
+
+  function leaveRoom(reason) {
+    net.room = null;
+    net.token = null;
+    net.moves = [];
+    net.status = 'lobby';
+    net.proposal = null;
+    net.members = [];
+    net.color = 'B';
+    sizeDirty = false;
+    rebuild([]);
+    clearSession();
+    if (window.RecordBridge && typeof window.RecordBridge.resetReview === 'function') {
+      window.RecordBridge.resetReview();
+    }
+    showLobby(reason || '已离开房间。', true);
+    renderNet();
+    setMessage('请先创建或加入一个房间。', 'info');
+  }
+
+  /** 退出房间（左上角按钮）：通知服务器让出座位 / 移除观众身份，然后回大厅。 */
+  async function leaveRoomFlow() {
+    if (!net.room) {
+      showLobby('请先创建或加入一个房间。', true);
+      return;
+    }
+    if (net.status === 'playing' && isPlayer() && !state.over
+        && !window.confirm('对局还未结束，确定退出房间回到大厅吗？（你的座位会让出来，别人加入后可以接手这盘棋）')) {
+      return;
+    }
+    try {
+      await api('leave');
+    } catch (e) { /* 网络不通也在本地退出 */ }
+    leaveRoom('已退出房间，回到大厅。');
+  }
+
+  /* ---------- 注册 / 登录（替代原来的「填昵称」） ---------- */
+  const AUTH_KEY = 'triangle-net-auth';
+  let account = null;   // {user, auth}：登录身份（存本地，换手机 / 电脑登录同一账号接着下）
+
+  function authStorage() {
+    try { return typeof localStorage !== 'undefined' && localStorage ? localStorage : null; }
+    catch (e) { return null; }
+  }
+  function loadAccount() {
+    const s = authStorage();
+    if (!s) return null;
+    try {
+      const raw = s.getItem(AUTH_KEY);
+      const a = raw ? JSON.parse(raw) : null;
+      return a && a.user && a.auth ? a : null;
+    } catch (e) { return null; }
+  }
+  function saveAccount(a) {
+    const s = authStorage();
+    if (!s) return;
+    try { if (a) s.setItem(AUTH_KEY, JSON.stringify(a)); else s.removeItem(AUTH_KEY); }
+    catch (e) { /* 忽略 */ }
+  }
+
+  function renderAuth() {
+    const el = document.getElementById('authStatus');
+    if (account && account.user) {
+      el.innerHTML = '已登录：<b>' + esc(account.user) + '</b> '
+        + '<button class="mini" id="btnLogout">退出登录</button>'
+        + '<br><span class="idnote">同一账号可以在手机 / 电脑上分别登录，接着下同一盘棋。</span>';
+      document.getElementById('btnLogout').addEventListener('click', logoutFlow);
+    } else {
+      el.textContent = '未登录也可以创建 / 加入房间：会以「游客」临时身份进入（不保存账号、不跨设备）。'
+        + '想换手机 / 电脑接着下同一盘棋，就「注册新用户」或「登录」。';
+    }
+  }
+
+  /** 注册 / 登录：成功后保存「用户名 + 登录令牌」，之后建房 / 进房都带同一身份。 */
+  async function authFlow(kind) {
+    const user = (document.getElementById('authUser').value || '').trim();
+    const pass = document.getElementById('authPass').value || '';
+    if (!/^[\w\u4e00-\u9fa5]{2,16}$/.test(user)) {
+      setLobbyMsg('用户名要 2-16 位（字母 / 数字 / 下划线 / 中文）。', false);
+      return;
+    }
+    if (pass.length < 4) {
+      setLobbyMsg('密码至少 4 位（记牢它：换设备登录要靠它）。', false);
+      return;
+    }
+    setLobbyMsg(kind === 'register' ? '正在注册…' : '正在登录…', true);
+    try {
+      const data = await api(kind, { user: user, pass: pass });
+      if (!data || !data.ok) { setLobbyMsg((data && data.error) || '操作失败，请重试。', false); return; }
+      account = { user: data.user, auth: data.auth };
+      saveAccount(account);
+      document.getElementById('authPass').value = '';
+      renderAuth();
+      setLobbyMsg((kind === 'register' ? '注册成功，' : '') + '已登录：' + esc(account.user)
+        + '。现在可以创建房间或加入房间。', true);
+    } catch (e) {
+      setLobbyMsg('无法连接服务器：' + e.message, false);
+    }
+  }
+
+  function logoutFlow() {
+    account = null;
+    saveAccount(null);
+    renderAuth();
+    setLobbyMsg('已退出登录（房间里的对局不受影响，重新登录同一账号还能接着下）。', true);
+  }
+
+  /** 打开页面时校验本地保存的登录状态（过期 / 换服务器都能及时发现）。 */
+  async function verifyAccount() {
+    if (!account) return;
+    try {
+      const data = await api('auth', { user: account.user, auth: account.auth });
+      if (!data || !data.ok) {
+        account = null;
+        saveAccount(null);
+        renderAuth();
+      }
+    } catch (e) { /* 网络不通先按已登录显示 */ }
+  }
+
+  async function createRoom() {
+    setLobbyMsg('正在创建房间…', true);
+    try {
+      const data = await api('create', {
+        name: currentName(),
+        user: account ? account.user : null,
+        auth: account ? account.auth : null
+      });
+      if (!data.ok) { setLobbyMsg(data.error, false); return; }
+      enterRoom(data);
+    } catch (e) {
+      setLobbyMsg('无法连接服务器：' + e.message, false);
+    }
+  }
+
+  /** 显示名 = 登录的用户名（同一账号换设备登录也认得出来）；没登录 = 「游客」临时身份。 */
+  function currentName() {
+    return account && account.user ? account.user : '游客';
+  }
+
+  async function joinRoom(code, token, silent) {
+    code = (code || '').trim().toUpperCase();
+    if (!token && !/^[A-Z2-9]{5}$/.test(code)) {
+      setLobbyMsg('房间号是 5 位字母和数字的组合（例如 Z6R6W）。', false);
+      return false;
+    }
+    if (!silent) setLobbyMsg('正在加入房间…', true);
+    try {
+      const data = await api('join', {
+        room: code,
+        token: token || null,
+        name: currentName(),
+        user: account ? account.user : null,
+        auth: account ? account.auth : null
+      });
+      if (!data.ok) {
+        if (!silent) setLobbyMsg(data.error, false);
+        return false;
+      }
+      enterRoom(data);
+      return true;
+    } catch (e) {
+      if (!silent) setLobbyMsg('无法连接服务器：' + e.message, false);
+      return false;
+    }
+  }
+
+  /* ---------- 提议栏 / 申请弹窗 ---------- */
+  function proposalName(type) {
+    return type === 'undo' ? '悔一手' : (type === 'end' ? '结束对局' : '开新对局');
+  }
+  /** 已经有哪些颜色点了同意（用于弹窗里显示进度） */
+  function votesText(votes, need) {
+    const got = (need || []).filter(function (c) { return votes && votes[c]; });
+    return got.length + ' / ' + (need || []).length + ' 位在场玩家已同意'
+      + (got.length ? '（' + got.map(colorName).join('、') + '）' : '');
+  }
+  function renderProposal() {
+    const bar = document.getElementById('proposalBar');
+    const p = net.proposal;
+    if (!p) {
+      bar.hidden = true;
+      renderRequest();
+      return;
+    }
+    bar.hidden = false;
+    const name = proposalName(p.type);
+    const mine = p.by === net.color;
+    document.getElementById('proposalText').innerHTML = mine
+      ? '你提议「<b>' + name + '</b>」，等待<b>所有在场玩家</b>回应…'
+      : colorName(p.by) + '提议「<b>' + name + '</b>」，需要<b>所有在场玩家同意</b>才生效';
+    document.getElementById('btnPropYes').style.display = mine ? 'none' : '';
+    document.getElementById('btnPropNo').style.display = mine ? 'none' : '';
+    document.getElementById('btnPropCancel').style.display = mine ? '' : 'none';
+    renderRequest();
+  }
+
+  /* ---------- 申请 / 提议弹窗（对所有玩家弹出） ---------- */
+  let reqSig = '';        // 当前请求的身份（不含表态进度）
+  let reqClosedSig = '';  // 用户手动关掉的是哪一条（同一条不反复弹）
+  function currentRequest() {
+    if (net.proposal) {
+      const p = net.proposal;
+      return {
+        kind: 'proposal',
+        sig: 'P|' + p.type + '|' + p.by + '|' + (p.at || 0),
+        title: '提议 · ' + proposalName(p.type),
+        mine: p.by === net.color,
+        votes: p.votes || {},
+        answered: !!(p.votes && p.votes[net.color]),
+        cancelable: true
+      };
+    }
+    if (net.joinRequest) {
+      const r = net.joinRequest;
+      return {
+        kind: 'join',
+        sig: 'J|' + r.color + '|' + r.id + '|' + (r.at || ''),
+        title: '上场申请',
+        mine: !!r.mine,
+        votes: r.votes || {},
+        answered: !!r.mine || !!(r.votes && r.votes[net.color]),
+        cancelable: false
+      };
+    }
+    return null;
+  }
+  function renderRequest() {
+    const modal = document.getElementById('reqModal');
+    const req = currentRequest();
+    if (!req) {
+      modal.hidden = true;
+      reqSig = '';
+      return;
+    }
+    // 「需要同意的人」= 现在坐在座位上的玩家（与服务器的全员同意判定一致）
+    const need = net.members
+      .filter(function (m) { return m.role && m.role !== 'S'; })
+      .map(function (m) { return m.role; });
+    const body = document.getElementById('reqModalBody');
+    const votes = document.getElementById('reqModalVotes');
+    if (req.kind === 'proposal') {
+      const name = proposalName(net.proposal.type);
+      body.innerHTML = req.mine
+        ? '你提议「<b>' + name + '</b>」：等<b>所有在场玩家都同意</b>后才生效（有人拒绝即作废）。'
+        : '<b>' + colorName(net.proposal.by) + '</b> 提议「<b>' + name + '</b>」：'
+          + '<b>需要所有在场玩家都同意</b>才生效，请表态。';
+    } else {
+      const r = net.joinRequest;
+      body.innerHTML = req.mine
+        ? '你申请以 <b>' + colorName(r.color) + '</b> 上场：等<b>所有在场玩家都同意</b>后坐上去。'
+        : '<b>' + esc(r.name || r.id) + '</b> 申请以 <b>' + colorName(r.color) + '</b> 加入比赛：'
+          + '<b>需要所有在场玩家都同意</b>，请表态。';
+    }
+    votes.innerHTML = '表态进度：' + votesText(req.votes, need)
+      + (req.mine ? '<br>你可以点「撤销」收回这条申请。'
+        : (req.answered ? '<br>你已同意，等待其他玩家表态…' : ''));
+    // 按钮：发起人只能撤销；在场玩家同意 / 拒绝；观众只能看（关闭）
+    const canVote = !req.mine && isPlayer() && !req.answered;
+    document.getElementById('btnReqYes').style.display = canVote ? '' : 'none';
+    document.getElementById('btnReqNo').style.display = canVote ? '' : 'none';
+    document.getElementById('btnReqCancel').style.display = req.mine ? '' : 'none';
+    // 新请求（或换了一条）就弹出来；用户刚手动关掉的那条不反复弹
+    const changed = req.sig !== reqSig;
+    reqSig = req.sig;
+    if (changed) {
+      if (reqClosedSig !== req.sig) {
+        modal.hidden = false;
+      } else {
+        reqClosedSig = '';
+      }
+    }
+  }
+  function closeRequest() {
+    document.getElementById('reqModal').hidden = true;
+    reqClosedSig = reqSig;
+  }
+
+  /* ---------- 消息 / 面板 ---------- */
+  function setMessage(html, kind) {
+    message = { text: html, kind: kind || 'info' };
+    const el = document.getElementById('message');
+    el.innerHTML = message.text;
+    el.className = 'message ' + (message.kind || '');
+  }
+
+  function nextInstruction() {
+    if (state.over) return '';
+    if (!isPlayer()) return '你在<b>观战</b>：现在是' + colorName(state.turn) + '的回合。';
+    const legal = getLegal();
+    const who = state.turn === net.color ? '轮到<b>你</b>' : '轮到 <b>' + colorName(state.turn) + '</b>';
+    if (legal.moves.length === 0) return '<b>鉴定为：无处可下。对局结束。</b>';
+    let s = legal.mode === 'link'
+      ? who + '：请把新棍接在上一根棍的<b>末端</b>上。'
+      : who + '：请<b>新开一串</b>，新棍要与<b>棋盘边框</b>或<b>任何一根已下的棍</b>相连。';
+    if (state.head) s += ' 当前线头：<b>(' + state.head[0] + ',' + state.head[1] + ')</b>。';
+    return s;
+  }
+
+  function refreshMessage(change) {
+    if (change === 'reset') {
+      setMessage('新对局开始。黑方先行：第一根棍必须与<b>棋盘边框</b>相连。' + nextInstruction(), 'info');
+      return;
+    }
+    if (change === 'load') {
+      setMessage('棋盘已换成载入的棋谱（分支续下）。' + nextInstruction(), 'info');
+      return;
+    }
+    if (change === 'undo') {
+      setMessage('已悔一手，棋局回退一步。' + nextInstruction(), 'info');
+      return;
+    }
+    if (change === 'resync') {
+      setMessage('棋盘已与服务器同步。' + nextInstruction(), 'info');
+      return;
+    }
+    const last = state.log[state.log.length - 1];
+    if (!last) { setMessage(nextInstruction(), 'info'); return; }
+    const who = (isPlayer() && last.player === net.color)
+      ? '你（' + colorName(last.player) + '）'
+      : colorName(last.player);
+    if (last.resign) {
+      setMessage(who + '认输' + (state.over ? '，对局结束。' : '退出比赛，其余棋手继续下。'), 'info');
+      return;
+    }
+    if (last.end) {
+      setMessage(who + '手动结束对局，按当前地数结算。', 'info');
+      return;
+    }
+    if (last.claimed) {
+      setMessage('🎉 ' + who + '围得 <b>' + last.claimed + '</b> 格！' + nextInstruction(), 'claim');
+    } else if (last.even) {
+      setMessage(who + '落子 ' + Logic.edgeLabel(last.edge) + '：两块地一样大，<b>平分不算</b>（不染色、不计数）。' + nextInstruction(), 'info');
+    } else {
+      setMessage(who + '落子 ' + Logic.edgeLabel(last.edge) + '。' + nextInstruction(), 'info');
+    }
+  }
+
+  /* ---------- 实时棋谱：直接写进「棋谱粘贴框」（原「落子记录」板块已删除） ---------- */
+  let lastLiveText = null;
+  function updateLiveRecord(force) {
+    const ta = document.getElementById('recordText');
+    if (!ta || reviewMode) return;   // 正在回放 / 导入棋谱：不覆盖框里的内容
+    const kit = window.RecordKit;
+    if (!kit || typeof kit.formatRecord !== 'function') return;
+    let text;
+    try {
+      text = kit.formatRecord(net.moves.map(function (m) {
+        return { p: m.p, e: m.e, r: m.r, end: m.end, j: m.j };
+      }), Logic);
+    } catch (e) {
+      return;
+    }
+    if (!net.moves.length) text = '';   // 空局保留占位提示
+    if (!force && text === lastLiveText) return;   // 没变化不动它（别打扰正在粘贴的人）
+    lastLiveText = text;
+    ta.value = text;
+  }
+
+  function renderNet() {
+    const bar = document.getElementById('netBar');
+    document.getElementById('btnLeaveRoom').hidden = !net.room;
+    if (!net.room) { bar.innerHTML = ''; return; }
+    const online = net.members.filter(function (m) { return m.online; }).length;
+    const seat = isPlayer()
+      ? '你坐<b>' + colorName(net.color) + '</b>位'
+      : '<b>观战中</b>' + (net.youId ? '（' + esc(net.youName || net.youId) + '）' : '');
+    const conn = net.connected
+      ? '<span class="ok">已连接</span>'
+      : '<span class="bad">连接断开，重连中…</span>';
+    bar.innerHTML = '房间 <b>' + net.room + '</b>'
+      + ' · <b>' + net.size + '</b> 路棋盘'
+      + ' · ' + seat
+      + ' · 在线 <b>' + online + '</b> / ' + net.members.length + ' 人'
+      + ' · ' + conn
+      + ' <button class="mini" id="btnCopyLink">复制邀请链接</button>';
+    document.getElementById('btnCopyLink').addEventListener('click', copyInvite);
+  }
+
+  function copyInvite() {
+    const url = inviteUrl();
+    const done = function () { setMessage('邀请链接已复制：<b>' + url + '</b>', 'info'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () {
+        window.prompt('复制此地址发给对手：', url);
+      });
+    } else {
+      window.prompt('复制此地址发给对手：', url);
+    }
+  }
+
+  function renderPanel() {
+    const sc = Logic.score(state);
+
+    // 地盘：每个参赛颜色一格（黑白红绿紫蓝）
+    const players = net.order.length ? net.order : ['B', 'W'];
+    document.getElementById('scoreGrid').innerHTML = players.map(function (c) {
+      return '<div class="score-box' + (!state.over && state.turn === c ? ' active' : '') + '">'
+        + '<div class="who">' + chipHtml(c) + colorName(c) + '</div>'
+        + '<div class="num">' + (sc[c] || 0) + '</div></div>';
+    }).join('');
+
+    const chip = document.getElementById('turnChip');
+    chip.className = 'chip';
+    chip.style.background = COLOR_INK[state.turn] || '#6b5a41';
+
+    let turnLabel;
+    if (net.status === 'waiting') turnLabel = '等待棋手入座…';
+    else if (state.over) turnLabel = '对局结束' + (state.winner === 'D' || !state.winner ? '（和棋）' : '（' + colorName(state.winner) + '胜）');
+    else if (!isPlayer()) turnLabel = '观战中（' + colorName(state.turn) + '行棋）';
+    else turnLabel = (state.turn === net.color ? '轮到你' : '他人行棋') + '（' + colorName(state.turn) + '）';
+    document.getElementById('turnText').textContent = turnLabel;
+
+    // 座位与上场申请
+    renderSeats();
+    renderJoinBar();
+
+    document.getElementById('youText').innerHTML = net.room
+      ? (isPlayer()
+        ? '你坐在<b>' + colorName(net.color) + '</b>位上'
+        : '你是<b>观众</b>（还没坐下）')
+        + (net.youId ? ' · 用户 <b>' + esc(net.youName || '—') + '</b> <span class="idnote">' + esc(net.youId) + '</span>' : '')
+        + ' · 房间号 <b>' + net.room + '</b> · <b>' + net.size + '</b> 路棋盘'
+      : '尚未加入房间。';
+
+    // 在线成员（所有人：各色棋手 + 观众）：昵称醒目，id 淡淡小字备注在旁边
+    document.getElementById('memberList').innerHTML = net.members.map(function (m) {
+      return '<li><span class="role">' + colorName(m.role) + '</span>'
+        + '<span class="nm">' + (m.name ? esc(m.name) : esc(m.id)) + '</span>'
+        + (m.name ? '<span class="mid">' + esc(m.id) + '</span>' : '')
+        + (m.id && m.id === net.youId ? '<span class="mine-tag">（我）</span>' : '')
+        + '<span class="st ' + (m.online ? 'on">● 在线' : 'off">○ 离线') + '</span></li>';
+    }).join('');
+
+    const legal = getLegal();
+    document.getElementById('requireText').innerHTML = state.over
+      ? '本局已结束。'
+      : (net.status === 'waiting'
+        ? '把房间号或邀请链接发给对方，等他坐下后自动开始（其他人可以观战）。'
+        : (!isPlayer()
+          ? '你在<b>观战</b>：棋盘实时同步，随时可以退出房间回大厅。'
+          : (legal.mode === 'link'
+            ? '落子要求：接在上一根棍的<b>末端（线头）</b>上，不能接它的另一端。'
+            : '落子要求：<b>新开一串</b>：与<b>棋盘边框</b>或<b>任何一根已下的棍</b>相连。')));
+
+    // 「下来」按钮：坐着的人可以主动让出座位（棋局保留，可被接替）
+    document.getElementById('btnStand').disabled = !isPlayer();
+
+    // 电脑代下：按钮字样随开关切换（电脑代下 / 手动接管），坐下才能开
+    const aiBtn = document.getElementById('btnAiPlay');
+    aiBtn.textContent = ai.on ? '手动接管' : '电脑代下';
+    aiBtn.disabled = !isPlayer();
+    document.getElementById('aiHint').innerHTML = ai.on
+      ? '电脑代下<b>开启中</b>（枚举深度 <b>' + readAiDepth() + '</b> 步）：轮到你时电脑自动落子，'
+        + '点「<b>手动接管</b>」或自己动手落子即收回。'
+      : '<b>手动下棋</b>：点「<b>电脑代下</b>」让电脑按设定的枚举深度一直替你下，再点一下收回。';
+
+    // 思考时间：设置值 + 当前行棋方倒计时
+    const thinkEl = document.getElementById('thinkClock');
+    const hintEl = document.getElementById('thinkHint');
+    if (net.thinkLimit > 0 && !state.over && net.status === 'playing') {
+      const used = Math.max(0, (net.serverTime || 0) - (net.turnStart || 0));
+      const left = net.thinkLimit - used;
+      const seated = !!(net.members.find(function (m) { return m.role === state.turn; }));
+      if (seated) {
+        thinkEl.innerHTML = '思考时间：' + colorName(state.turn) + '剩 <b class="'
+          + (left <= 10 ? 'hurry' : '') + '">' + Math.max(0, left) + '</b> 秒（共 ' + net.thinkLimit + ' 秒）'
+          + (left <= 10 ? ' · <b class="hurry">超时将被请下场</b>' : '');
+      } else {
+        thinkEl.innerHTML = '思考时间：<b>' + colorName(state.turn) + '座位空着</b>（等接替者上场后重新计时）。';
+      }
+    } else {
+      thinkEl.textContent = net.thinkLimit > 0 ? '思考时间：当前不在对局中。' : '思考时间：不限时（可在「对局操作」里设置）。';
+    }
+    hintEl.innerHTML = net.thinkLimit > 0
+      ? '当前设置：<b>' + net.thinkLimit + ' 秒</b>。轮到的一方超时会被<b>踢下座位</b>（棋局保留、本局不能再上场，别人可接替）。'
+      : '当前<b>不限时</b>（0）。填入秒数点「应用」即可开启：超时的一方会被<b>自动请下场</b>。';
+    const thinkIn = document.getElementById('thinkInput');
+    if (!thinkDirty && thinkIn.value !== String(net.thinkLimit)) thinkIn.value = String(net.thinkLimit);
+
+    const pending = !!net.proposal;
+    document.getElementById('btnUndo').disabled = !isPlayer() || net.moves.length === 0 || pending || net.status !== 'playing' || reviewMode;
+    document.getElementById('btnNew').disabled = !isPlayer() || pending || net.status === 'waiting' || net.status === 'lobby';
+    document.getElementById('btnResign').disabled = !isPlayer() || state.over || net.status !== 'playing' || reviewMode;
+    document.getElementById('btnEndGame').disabled = !isPlayer() || net.status === 'waiting' || net.status === 'lobby';
+    document.getElementById('btnSize').disabled = !isPlayer() || net.status === 'lobby';
+    const sizeSel = document.getElementById('sizeSelect');
+    sizeSel.disabled = !isPlayer() || net.status === 'lobby';
+    // 用户正在挑选别的路数时不覆盖他的选择（否则每 600ms 被打回房间当前路数）
+    if (!sizeDirty && sizeSel.value !== String(net.size)) sizeSel.value = String(net.size);
+
+    const ov = document.getElementById('overlay');
+    if (state.over && net.status === 'over' && !reviewMode) {
+      ov.hidden = false;
+      const title = document.getElementById('overlayTitle');
+      const text = document.getElementById('overlayText');
+      const scoreText = players.map(function (c) { return colorName(c) + ' ' + (sc[c] || 0); }).join(' 格 · ') + ' 格';
+      if (state.winner === 'D' || !state.winner) {
+        title.textContent = '平局';
+        text.textContent = scoreText;
+      } else {
+        title.textContent = colorName(state.winner) + '胜';
+        text.textContent = scoreText;
+      }
+    } else {
+      ov.hidden = true;
+    }
+
+    const wait = document.getElementById('waitOverlay');
+    wait.hidden = net.status !== 'waiting' || waitClosed;
+    if (net.status === 'waiting') {
+      document.getElementById('waitRoom').textContent = net.room || '';
+      document.getElementById('waitLink').textContent = inviteUrl();
+    }
+  }
+
+  /* ---------- 座位（上场下棋）/ 上场申请 ---------- */
+  function renderSeats() {
+    const grid = document.getElementById('seatGrid');
+    grid.innerHTML = Logic.COLORS.map(function (c) {
+      const member = net.members.find(function (m) { return m.role === c; });
+      const mine = net.color === c;
+      if (!member) {
+        // 还在行棋轮次里的空位 = 有人下来 / 掉线 / 超时被踢下场留下的：可直接接替
+        const takeover = net.status === 'playing' && net.order.indexOf(c) >= 0;
+        return '<button class="seat free" data-color="' + c + '">' + chipHtml(c)
+          + '<span class="who2"><span class="nm">' + colorName(c) + ' · 空位</span>'
+          + '<span class="mid">' + (takeover ? '点此处接替上场（棋局不重置）' : '点此处坐下上场') + '</span></span></button>';
+      }
+      return '<button class="seat' + (mine ? ' mine' : '') + '" disabled>' + chipHtml(c)
+        + '<span class="who2"><span class="nm">' + colorName(c) + ' · ' + (member.name ? esc(member.name) : '—') + '</span>'
+        + '<span class="mid">' + esc(member.id) + (mine ? ' · 我' : '') + '</span></span></button>';
+    }).join('');
+  }
+
+  function renderJoinBar() {
+    const bar = document.getElementById('joinBar');
+    const req = net.joinRequest;
+    if (!req) {
+      bar.hidden = true;
+      return;
+    }
+    bar.hidden = false;
+    const mine = !!req.mine;
+    document.getElementById('joinText').innerHTML = mine
+      ? '你申请以 <b>' + colorName(req.color) + '</b> 上场，等待<b>所有在场玩家</b>同意…'
+      : '<b>' + esc(req.name || req.id) + '</b> 申请以 <b>' + colorName(req.color) + '</b> 加入比赛'
+        + (isPlayer() ? '，请表态：' : '，等待棋手同意…');
+    document.getElementById('btnJoinYes').style.display = (!mine && isPlayer()) ? '' : 'none';
+    document.getElementById('btnJoinNo').style.display = (!mine && isPlayer()) ? '' : 'none';
+    document.getElementById('btnJoinCancel').style.display = mine ? '' : 'none';
+  }
+
+  /** 坐下上场：没开打就直接坐；对局进行中则发「上场申请」等所有棋手同意 */
+  async function sendSit(color) {
+    try {
+      const data = await api('sit', { color: color });
+      if (!data.ok) { setMessage(data.error, 'warn'); return; }
+      sync(data);
+      if (isPlayer()) {
+        setMessage('你坐上了<b>' + colorName(net.color) + '</b>位，上场了。' + nextInstruction(), 'info');
+      } else {
+        setMessage('已申请以 <b>' + colorName(color) + '</b> 上场：等<b>所有在场棋手</b>同意后即可上座。', 'info');
+      }
+    } catch (e) {
+      setMessage('网络异常，上场申请没有送达。', 'warn');
+    }
+  }
+
+  async function sendVote(accept) {
+    try {
+      const data = await api('vote', { accept: accept });
+      if (!data.ok) { setMessage(data.error, 'warn'); return; }
+      const req = data.joinRequest;
+      sync(data);
+      if (req) {
+        setMessage(accept ? '你同意了上场申请，等其他棋手表态…' : '你已表态，等待处理…', 'info');
+      } else if (accept) {
+        setMessage('所有在场玩家都已同意。新棋手已上场。' + nextInstruction(), 'info');
+      } else {
+        setMessage('上场申请已撤销或被拒绝。' + nextInstruction(), 'info');
+      }
+    } catch (e) {
+      setMessage('网络异常，回应没有送达。', 'warn');
+    }
+  }
+
+  /* ---------- 按钮 ---------- */
+  document.getElementById('btnRegister').addEventListener('click', function () { authFlow('register'); });
+  document.getElementById('btnLogin').addEventListener('click', function () { authFlow('login'); });
+  document.getElementById('authPass').addEventListener('keydown', function (evt) {
+    if (evt && evt.key === 'Enter') authFlow('login');
+  });
+  document.getElementById('btnCreate').addEventListener('click', createRoom);
+  document.getElementById('btnJoin').addEventListener('click', function () {
+    joinRoom(document.getElementById('joinCode').value, null, false);
+  });
+  document.getElementById('joinCode').addEventListener('keydown', function (evt) {
+    if (evt.key === 'Enter') joinRoom(this.value, null, false);
+  });
+
+  document.getElementById('btnNew').addEventListener('click', function () {
+    if (net.status === 'waiting' || net.status === 'lobby') return;
+    if (net.moves.length > 0 && !state.over
+        && !window.confirm('当前对局尚未结束，确定要提议开始新对局吗？（需要所有在场玩家同意）')) return;
+    sendPropose('new');
+  });
+  document.getElementById('btnOverlayNew').addEventListener('click', function () {
+    sendPropose('new');
+  });
+  document.getElementById('btnUndo').addEventListener('click', function () {
+    sendPropose('undo');
+  });
+  document.getElementById('btnResign').addEventListener('click', function () {
+    if (state.over) return;
+    if (!window.confirm('你（' + colorName(net.color) + '）确定认输、退出比赛吗？（其余棋手会继续下）')) return;
+    sendResign();
+  });
+
+  document.getElementById('btnPropYes').addEventListener('click', function () { sendAnswer(true); });
+  document.getElementById('btnPropNo').addEventListener('click', function () { sendAnswer(false); });
+  document.getElementById('btnPropCancel').addEventListener('click', function () { sendAnswer(false); });
+  document.getElementById('btnCopyLink2').addEventListener('click', copyInvite);
+  // 「等待棋手加入」遮罩上的关闭按钮：关掉模糊界面先看棋盘（不会再来打扰）
+  document.getElementById('btnCloseWait').addEventListener('click', function () {
+    waitClosed = true;
+    document.getElementById('waitOverlay').hidden = true;
+  });
+
+  // 左上角：退出房间回大厅
+  document.getElementById('btnLeaveRoom').addEventListener('click', leaveRoomFlow);
+
+  // 座位：点空位坐下上场（对局进行中会变成「上场申请」）
+  document.getElementById('seatGrid').addEventListener('click', function (evt) {
+    const t = evt && evt.target;
+    const btn = t && typeof t.closest === 'function' ? t.closest('button.seat') : null;
+    if (!btn || btn.disabled) return;
+    const color = btn.getAttribute && btn.getAttribute('data-color');
+    if (color) sendSit(color);
+  });
+
+  // 上场申请：所有在场棋手都同意才能坐上去
+  document.getElementById('btnJoinYes').addEventListener('click', function () { sendVote(true); });
+  document.getElementById('btnJoinNo').addEventListener('click', function () { sendVote(false); });
+  document.getElementById('btnJoinCancel').addEventListener('click', function () { sendVote(false); });
+
+  // 座位上的「下来」：让出座位但保留棋局（别人可接替继续下）
+  document.getElementById('btnStand').addEventListener('click', function () {
+    if (!isPlayer()) return;
+    if (!window.confirm('确定离开' + colorName(net.color) + '座位？'
+      + '棋局不会重置、也不会算你认输。任何人都能坐上去继续下。')) return;
+    sendStand();
+  });
+
+  // 思考时间设置（秒，0 = 不限制）
+  document.getElementById('thinkInput').addEventListener('input', function () {
+    thinkDirty = true;
+  });
+  document.getElementById('btnThink').addEventListener('click', function () {
+    const v = parseInt(document.getElementById('thinkInput').value, 10);
+    if (!net.room || !isPlayer()) return;
+    if (!Number.isFinite(v) || v < 0) { setMessage('思考时间要填一个不小于 0 的秒数（不限时填 0）。', 'warn'); return; }
+    sendThink(Math.min(86400, v));
+  });
+  document.getElementById('btnThinkOff').addEventListener('click', function () {
+    if (!net.room || !isPlayer()) return;
+    sendThink(0);
+  });
+
+  // 电脑代下：点一下让电脑一直替你下（可设枚举深度），再点「手动接管」收回自己下
+  document.getElementById('btnAiPlay').addEventListener('click', function () {
+    if (!isPlayer()) {
+      setMessage('你是<b>观众</b>，不能让电脑代下；请先在「座位」里坐下上场。', 'warn');
+      return;
+    }
+    setAutoPlay(!ai.on);
+  });
+
+  // 申请 / 提议弹窗按钮
+  document.getElementById('btnReqYes').addEventListener('click', function () {
+    document.getElementById('reqModal').hidden = true;
+    if (net.proposal) sendAnswer(true); else sendVote(true);
+  });
+  document.getElementById('btnReqNo').addEventListener('click', function () {
+    document.getElementById('reqModal').hidden = true;
+    if (net.proposal) sendAnswer(false); else sendVote(false);
+  });
+  document.getElementById('btnReqCancel').addEventListener('click', function () {
+    closeRequest();
+    if (net.proposal) sendAnswer(false); else sendVote(false);
+  });
+  document.getElementById('btnReqClose').addEventListener('click', closeRequest);
+  window.addEventListener('keydown', function (evt) {
+    if (evt && evt.key === 'Escape' && !document.getElementById('reqModal').hidden) closeRequest();
+  });
+
+  // 棋盘大小：进房间后随时可改（会清空棋局重新开始）
+  document.getElementById('sizeSelect').addEventListener('change', function () {
+    sizeDirty = true;   // 用户改了选择：在点「应用」之前不许轮询改回去
+  });
+  document.getElementById('btnSize').addEventListener('click', async function () {
+    const size = parseInt(document.getElementById('sizeSelect').value, 10);
+    if (!net.room || !isPlayer()) return;
+    if (size === net.size) {
+      sizeDirty = false;
+      renderPanel();
+      setMessage('棋盘现在就是 <b>' + net.size + ' 路</b>。', 'info');
+      return;
+    }
+    if (net.moves.length > 0
+        && !window.confirm('更改棋盘大小会清空当前棋局（' + net.size + ' 路 → ' + size + ' 路），确定要重开一局？')) return;
+    try {
+      const data = await api('size', { size: size });
+      if (!data.ok) {
+        setMessage(data.error, 'warn');
+        return;
+      }
+      sizeDirty = false;
+      sync(data);
+    } catch (e) {
+      setMessage('网络异常，棋盘大小没有修改成功。', 'warn');
+    }
+  });
+
+  /* ---------- 对局记录 / 回放 桥接（record.js 使用） ---------- */
+  async function sendEnd() {
+    if (net.status === 'over') return { ok: true };
+    try {
+      const data = await api('end');
+      if (!data || !data.ok) return { ok: false, error: (data && data.error) || '未能结束对局' };
+      sync(data);
+      // 「结束对局」也是提议：所有在场玩家同意后才真正生效（pending = 还在等大家表态）
+      return { ok: true, pending: !!net.proposal };
+    } catch (e) {
+      return { ok: false, error: '网络异常，未能结束对局' };
+    }
+  }
+
+  /** 把一段着法载入房间（「从这里续下」）：整个房间换成这个局面继续下。 */
+  async function sendLoad(moves, size) {
+    net.expectLoad = true;
+    try {
+      const body = { moves: moves };
+      if (size) body.size = size;
+      const data = await api('load', body);
+      if (!data || !data.ok) {
+        net.expectLoad = false;
+        return { ok: false, error: (data && data.error) || '未能载入棋谱' };
+      }
+      sync(data);
+      return { ok: true };
+    } catch (e) {
+      net.expectLoad = false;
+      return { ok: false, error: '网络异常，未能载入棋谱' };
+    }
+  }
+
+  window.RecordBridge = {
+    logic: Logic,
+    autoPlay: AutoPlay,
+    setAutoPlay: setAutoPlay,
+    moves: function () {
+      return net.moves.map(function (m) { return { p: m.p, e: m.e, r: m.r, end: m.end, j: m.j }; });
+    },
+    /** 棋盘上现在画着几根棍（新对局「清空棋子」的回归检查用）。 */
+    stickCount: function () { return state.sticks ? state.sticks.size : 0; },
+    color: function () { return net.color; },
+    status: function () { return net.status; },
+    endGame: sendEnd,
+    loadMoves: sendLoad,
+    showState: function (st, reviewing) {
+      state = st;
+      reviewMode = !!reviewing;
+      anim = null;      // 回放逐帧换局面，不播落子动画
+      invalidate();
+      dirty = true;
+      renderPanel();
+    },
+    /** 棋谱 ↔ 棋盘一一对应：导入回放时按棋谱自动匹配棋盘大小（只改本地显示，不动房间棋局）。 */
+    useSize: function (n) {
+      const want = Math.max(Logic.MIN_SIDE, Math.min(Logic.MAX_SIDE, Math.round(Number(n) || 0)));
+      if (want && want !== Logic.SIDE) {
+        Logic.setSize(want);
+        resize();
+        invalidate();
+        dirty = true;
+        hoverEdge = null;
+        previewClaim = null;
+        flash = null;
+      }
+      return Logic.SIDE;
+    },
+    roomSize: function () { return net.size; },
+    restoreLive: function () {
+      reviewMode = false;
+      if (Logic.SIDE !== net.size) {   // 回放时可能按棋谱换了棋盘：回实时对局要换回房间的
+        Logic.setSize(net.size);
+        resize();
+      }
+      rebuild(net.moves, net.order);
+      if (net.turn) state.turn = net.turn;
+      renderPanel();
+      updateLiveRecord(true);
+      scheduleAiMove();
+    },
+    // 「手动结束对局」经全员同意生效后，由界面层回调 → 自动回放整盘（record.js 注册）
+    onLiveEnd: null,
+    message: function (t, k) { setMessage(t, k); }
+  };
+
+  /* ---------- 启动 ---------- */
+  async function boot() {
+    resize();
+    invalidate();
+    renderPanel();
+    requestAnimationFrame(frame);
+    setInterval(poll, POLL_MS);
+    window.addEventListener('focus', poll);
+
+    // 恢复登录状态（同一账号换设备登录后，接着建房 / 进房下棋）
+    account = loadAccount();
+    renderAuth();
+    verifyAccount();
+
+    const urlRoom = (new URLSearchParams(location.search).get('room') || '').trim().toUpperCase();
+    const saved = loadSession();
+    if (saved && saved.room && saved.token) {
+      setMessage('正在恢复上次的对局…', 'info');
+      const ok = await joinRoom(saved.room, saved.token, true);
+      if (ok) {
+        poll();
+        return;
+      }
+    }
+    showLobby(urlRoom
+      ? '已填入房间号 ' + urlRoom + '，点「加入房间」即可。'
+      : '请创建房间或加入房间。', true);
+    if (urlRoom) document.getElementById('joinCode').value = urlRoom;
+    setMessage('请先创建或加入一个房间。', 'info');
+    renderPanel();
+  }
+
+  boot();
+})();
+</script>
+<script src="record.js"></script>
+</body>
+</html>
