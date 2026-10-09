@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# 棍棋 · 三角版 — 联网对战服务器（Linux / macOS 启动脚本）
+# 棍棋服务器（Linux / macOS 启动脚本）
 # 用法：./start-server.sh [端口]
 cd "$(dirname "$0")" || exit 1
 

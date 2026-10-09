@@ -1,12 +1,12 @@
 /* ============================================================
-   棍棋 · 三角版（联机版）—— 对局记录 · 回放 / 导入
+   棍棋—— 对局记录 · 回放 / 导入
    · 「手动结束对局」：提议经所有在场玩家同意后按当前地数结算，
      随后以每秒 10 步回放整盘动画，并把纯文本对局记录写进棋谱框
      （平时棋谱框里也实时显示当前对局的记录，见 index.html 的 updateLiveRecord）。
    · 「对局记录导入」：粘贴纯文本 → 自动播放，或「上一步 / 下一步」手动查看，
      随时显示当时的各方地数（三角格数）。
    纯文本格式（导出即此格式；导入另兼容若干简写）：
-       棍棋 · 三角版 对局记录
+       棍棋棋谱
        1 黑 (18,0)→(18,1)
        2 白 (18,1)→(19,0)（围得 1 格）
        3 黑 认输
@@ -81,7 +81,7 @@
 
   /** 把着法序列渲染成纯文本棋谱（含围地手数注记）。moves: [{p,e}|{p,r}|{p,end}|{p,j}] */
   function formatRecord(moves, L) {
-    const lines = ['棍棋 · 三角版 对局记录'];
+    const lines = ['棍棋棋谱'];
     const st = L.newGameState(orderOf(moves));
     let prevTo = null;
     for (let i = 0; i < moves.length; i++) {
@@ -365,7 +365,7 @@
     function updateStatus() {
       const el = $('recordStatus');
       if (!rev.states.length) {
-        el.textContent = '尚无棋谱：点「手动结束对局」生成，或在下方粘贴棋谱后点「导入」。';
+        el.textContent = '尚无棋谱。点这个 ↑ 导入。';
         return;
       }
       const sc = L.score(rev.states[rev.cur]);
@@ -427,7 +427,7 @@
         B.message('对局还没有开始。', 'warn');
         return;
       }
-      if (status === 'playing' && !window.confirm('提议结束对局？（按当前地数结算胜负，需要所有在场玩家都同意）')) return;
+      if (status === 'playing' && !window.confirm('提议结束对局并计算胜负？需要所有在场玩家都同意')) return;
       stopAuto();
       const res = await B.endGame();
       if (!res.ok) {
@@ -435,7 +435,7 @@
         return;
       }
       if (res.pending) {
-        B.message('已发起「结束对局」提议：等<b>所有在场玩家都同意</b>后，按当前地数结算并自动回放棋谱。', 'info');
+        B.message('提议结束对局：等待<b>所有在场玩家同意</b>。', 'info');
       }
       // 没有 pending（只剩你一位在场）：提议立即生效，回放走 onLiveEnd
     }
@@ -452,7 +452,7 @@
       B.showState(rev.states[0], reviewing());
       updateStatus();
       startAuto();
-      B.message('对局已结束，正在以每秒 10 步回放棋谱……下方是纯文本对局记录，可复制或粘贴给对方导入。', 'info');
+      B.message('对局已结束，正在以每秒 10 步回放棋谱……下方是纯文本对局记录，可复制。', 'info');
     }
 
     /** 棋谱需要的最小棋盘边长（坐标原点在棋盘中心：|a|、|b|、|a+b| 都不能超过边长）。 */

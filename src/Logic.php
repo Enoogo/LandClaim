@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * 棍棋 · 三角版（Land Claim · Triangle）— 纯逻辑层（PHP 移植）
+ * 棍棋 Land Claim — 纯逻辑层（PHP 移植）
  *
  * 与 ServerVersion/index.html 内嵌的 JS `Logic` 模块逐行对应，同一套规则：
  *   - 正六边形棋盘（默认边长 19，可按房间设置 3~40），全部由正三角形格铺成

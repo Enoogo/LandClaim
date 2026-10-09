@@ -75,19 +75,19 @@ function lanIps(): array
 $ips = lanIps();
 $line = str_repeat('=', 58);
 echo "\n{$line}\n";
-echo "  棍棋 · 三角版 — 联网双人对战服务器（PHP）\n";
+echo "  棍棋 PHP服务器\n";
 $line2 = str_repeat('-', 58);
 echo "{$line2}\n";
-echo "  本机（做主机的这台）：  http://localhost:{$port}/\n";
+echo "  本机：  http://localhost:{$port}/\n";
 foreach ($ips as $ip) {
-    echo "  联网（对手用这个）：  http://{$ip}:{$port}/\n";
+    echo "  联网：  http://{$ip}:{$port}/\n";
 }
 if (count($ips) === 0) {
     echo "  （没检测到联网 IP，请用 ipconfig / ifconfig 查看本机地址）\n";
 }
 echo "{$line2}\n";
-echo "  · 对手打开上面的联网地址 → 输入房间号 → 即可同屏对战\n";
-echo "  · 防火墙提示：首次运行请允许 php.exe 访问「专用网络」\n";
+echo "  · 点击上方地址开始对战\n";
+echo "  · 防火墙提示：首次运行请允许 php.exe 访问专用网络\n";
 echo "  · 按 Ctrl+C 停止服务器\n";
 echo "{$line}\n\n";
 

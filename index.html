@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Land Claim   棍棋</title>
+<title>Land Claim</title>
 <style>
   :root {
     --bg: #16120d;
@@ -357,10 +357,10 @@
         <div class="overlay" id="waitOverlay" hidden>
           <div>
             <h2>等待棋手加入</h2>
-            <p>让对方联网打开本页，输入房间号加入：</p>
+            <p>让对方打开本页，输入房间号加入：</p>
             <div class="wait-room" id="waitRoom">—————</div>
             <span class="wait-link" id="waitLink"></span>
-            <button class="primary" id="btnCopyLink2">复制邀请链接</button>
+            <button class="primary" id="btnCopyLink2">复制链接</button>
             <button id="btnCloseWait">关闭</button>
           </div>
         </div>
@@ -393,6 +393,7 @@
 
       <div class="message" id="message"></div>
 
+
       <div class="card" id="opsCard">
         <h3>对局操作</h3>
         <div class="btn-row">
@@ -401,29 +402,56 @@
           <button id="btnResign">认输</button>
           <button id="btnEndGame">手动结束对局</button>
         </div>
-        <div class="require">「悔一手」「新对局」「手动结束对局」都会<b>弹窗</b>向所有玩家发起提议，
-          <b>所有在场玩家都同意才生效</b>（2 分钟没集齐同意即作废）；
-          「手动结束对局」生效后按当前<b>地数</b>结算胜负并自动回放棋谱；
-          <b>有人不同意</b>结束对局则棋局继续，<b>按本该轮到的顺序，转给第一个拒绝的人继续下</b>。</div>
-        <div class="think-row">
-          <label for="aiDepthInput">电脑代下 · 枚举深度（步）</label>
-          <input class="think" id="aiDepthInput" type="number" min="1" max="5" step="1"
-            value="2" autocomplete="off">
-          <button class="primary mini" id="btnAiPlay">电脑代下</button>
+
+        <div class="require"></div>
+
+        <!-- 左右两栏：flex 横排 -->
+        <div style="display:flex; flex-direction:row; flex-wrap:nowrap; gap:16px; align-items:flex-start;">
+
+          <!-- 左栏：人机代下 -->
+          <div style="flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:8px; padding:10px 12px; border:1px solid rgba(0,0,0,.12); border-radius:8px;">
+            <h4 style="margin:0; font-size:14px; font-weight:600;">人机代下</h4>
+
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <label for="aiDepthInput" style="white-space:nowrap;">枚举深度</label>
+              <input class="think" id="aiDepthInput" type="number"
+                     min="1" max="5" step="1" value="2" autocomplete="off"
+                     style="flex:1 1 60px; min-width:0;">
+            </div>
+
+            <div style="display:flex; gap:6px;">
+              <button class="primary mini" id="btnAiPlay">电脑代下</button>
+            </div>
+
+            <div class="think-clock" id="aiHint"></div>
+          </div>
+
+          <!-- 右栏：思考时间 -->
+          <div style="flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:8px; padding:10px 12px; border:1px solid rgba(0,0,0,.12); border-radius:8px;">
+            <h4 style="margin:0; font-size:14px; font-weight:600;">思考时间</h4>
+
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <label for="thinkInput" style="white-space:nowrap;">时长(秒)</label>
+              <input class="think" id="thinkInput" type="number"
+                     min="0" max="86400" step="10" placeholder="0" autocomplete="off"
+                     style="flex:1 1 60px; min-width:0;">
+            </div>
+
+            <div style="display:flex; gap:6px;">
+              <button class="primary mini" id="btnThink">应用</button>
+              <button class="mini" id="btnThinkOff">不限时</button>
+            </div>
+
+            <div class="think-clock" id="thinkHint"></div>
+          </div>
+
         </div>
-        <div class="think-clock" id="aiHint"></div>
-        <div class="think-row">
-          <label for="thinkInput">思考时间（秒）</label>
-          <input class="think" id="thinkInput" type="number" min="0" max="86400" step="10"
-            placeholder="0" autocomplete="off">
-          <button class="primary mini" id="btnThink">应用</button>
-          <button class="mini" id="btnThinkOff">不限时</button>
-        </div>
-        <div class="think-clock" id="thinkHint"></div>
       </div>
 
+
+
       <div class="card" id="recordCard">
-        <h3>对局记录 · 回放 / 导入</h3>
+        <h3>棋谱面板</h3>
         <div class="btn-row quad">
           <button class="primary" id="recordPlay">播放</button>
           <button id="recordPrev">上一步</button>
@@ -434,21 +462,14 @@
           <button id="recordExit">回到对局</button>
         </div>
         <div class="export-bar" id="recordExportBar" hidden>
-          <button class="primary mini" id="recordCopyPlain">复制显示的棋谱</button>
-          <button class="primary mini" id="recordCopyZip">复制压缩后的棋谱</button>
-          <span class="idnote">压缩谱很短：一串棋 = 第一根棍的坐标（如 (-31,6) 写成 -3106）
-            + 之后每根棍的方向 abcdef。导入时文本里有「→」按老格式解析，没有就按压缩格式解析。</span>
+          <button class="primary mini" id="recordCopyPlain">复制完整版棋谱</button>
+          <button class="primary mini" id="recordCopyZip">复制压缩版棋谱</button>
+          <span class="idnote">压缩谱看上去高级一点。压缩了很多，但是并没有压缩到极致。</span>
         </div>
         <div class="require" id="recordStatus">第 0 / 0 手 · 黑地 0 · 白地 0</div>
         <textarea id="recordText" class="record-text" spellcheck="false"
-          placeholder="本局棋谱会在这里实时显示（随落子自动更新）。要回放别人的棋谱：把纯文本棋谱粘贴到这里，点「导入下方棋谱」即可自动播放（每秒 10 步），也可以「上一步 / 下一步」手动查看，随时显示当时的各方地数。&#10;&#10;格式示例：&#10;1 黑 (18,0)→(18,1)&#10;2 白 (18,0)→(19,0)（围得 1 格）&#10;3 黑 认输"></textarea>
-        <div class="require">格式：<b>手数 黑/白/红/绿/紫/蓝 (a,b)→(c,d)</b>，认输写「认输」、手动终局写「终局」；
-          每根棍都从<b>起端指向终端</b>（起端接上一根的终端），前后首尾衔接顺下来。
-          当前对局的记录<b>实时显示在这个框里</b>；点「<b>导出棋谱</b>」可选<b>复制显示的棋谱</b>或<b>复制压缩后的棋谱</b>。
-          <br>导入自动识别两种格式：文本里有「<b>→</b>」按<b>老棋谱</b>解析，没有就按<b>压缩棋谱</b>解析（都能粘贴到这里点「导入下方棋谱」）。
-          <br><b>分支续下</b>：用「上一步 / 下一步」停在想改的那一步，点「<b>从这里续下</b>」，
-          整个房间就换成这个局面继续下（对方也会同步看到）；棋谱比棋盘大时会提示先把棋盘调大。</div>
-      </div>
+          placeholder="此处将显示实时棋谱，也可以直接粘贴棋谱导入。压缩版和完整版都可以导入。"></textarea>
+        <div class="require"></div>
     </section>
 
     <aside class="side">
@@ -469,16 +490,12 @@
       </div>
 
       <div class="card">
-        <h3>坐上去</h3>
+        <h3>座位</h3>
         <div class="seats" id="seatGrid"></div>
         <div class="btn-row" style="margin-top:8px">
           <button id="btnStand">下座</button>
         </div>
-        <div class="require" id="seatHint">点空位<b>坐下</b>就上场（黑白红绿紫蓝各用各的棋子颜色，轮流落子）；
-          <b>对局进行中</b>要上场的新颜色，需要所有在场玩家弹窗同意；
-          <b>空位可以直接坐上去接替</b>（有人下来 / 掉线 / 超时被踢下场后，棋局保留，接替者继续下）。
-          坐着的人点「<b>下来</b>」让出座位（<b>棋局不重置</b>）；「认输」才是退出比赛。</div>
-      </div>
+        <div class="require" id="seatHint"></div>
 
       <div class="card">
         <h3>在线成员</h3>
@@ -505,8 +522,7 @@
           </select>
           <button class="primary" id="btnSize">应用</button>
         </div>
-        <div class="require">坐标原点在<b>棋盘中心 (0,0)</b>
-          <b>更改棋盘大小会清空当前棋局</b>，从新的一局开始。</div>
+        <div class="require"><b></b></div>
       </div>
 
       <details class="card rules">
@@ -560,27 +576,24 @@
     </aside>
   </main>
 
-  <footer>
-    联机版 v0.8.1 · PHP 服务器 + HTTP 轮询同步（端口 6850）· 主机运行 <code>php start.php</code> 或双击 <code>start-server.bat</code><br>
-    棋盘几何：正六边形边长 n = 3n²+3n+1 个网格点 / 9n²+3n 条网格边 / 6n² 个正三角形格（默认 n = 19；坐标原点在棋盘中心）
-  </footer>
+<footer>
+    © 2026 <a href="https://github.com/enoogo" target="_blank" rel="noopener noreferrer" style="color:#fff">Enoogo</a>
+    <a href="https://github.com/cbbff12" target="_blank" rel="noopener noreferrer" style="color:#fff">cbbff12</a>
+    · Licensed under the <a href="/LICENSE" style="color:#fff">MIT License</a>
+</footer>
 </div>
 
 <div id="lobby">
   <div class="lobby-card">
-    <h2>Land Caim   棍棋</h2>
+    <h2>棍棋</h2>
     <p class="sub">
-      电脑连同一个路由器 / WiFi 即可对战：<b>一台点「创建房间」当主机</b>，
-      其他人打开主机地址、输入房间号加入。<b>人数不限</b>：进房间后大家都是观众，
-      在房间里<b>选一个颜色坐下</b>就上场下棋（黑白红绿紫蓝，各用各的棋子颜色，轮流落子）。
-      所有落子都由 PHP 服务器按规则校验并同步。<b>不注册也可以直接玩</b>（以「游客」临时身份进入）；
-      下面的<b>注册 / 登录</b>是可选的，登录后换手机 / 电脑还能接着下同一盘棋。
+      <b>Land Claim</b>
     </p>
     <div class="auth-box" id="authBox">
       <div class="auth-row">
-        <input class="nick" id="authUser" maxlength="16" placeholder="用户名（2-16 位：字母 / 数字 / 中文）"
+        <input class="nick" id="authUser" maxlength="16" placeholder="用户名"
           autocomplete="off" spellcheck="false">
-        <input class="nick" id="authPass" type="password" maxlength="64" placeholder="密码（至少 4 位）"
+        <input class="nick" id="authPass" type="password" maxlength="64" placeholder="密码（4位以上）"
           autocomplete="off">
       </div>
       <div class="auth-btns">
@@ -591,15 +604,15 @@
     </div>
     <div class="lobby-grid">
       <div class="lobby-box">
-        <h3>创建房间（当主机）</h3>
+        <h3>创建房间</h3>
         <button class="primary" id="btnCreate" style="width:100%">创建房间</button>
-        <div class="require">创建后你也是观众：在房间里选颜色坐下，就可以开始对局。</div>
+        <div class="require"></div>
       </div>
       <div class="lobby-box">
-        <h3>加入房间（棋手 / 观众）</h3>
+        <h3>加入房间</h3>
         <input class="code" id="joinCode" maxlength="5" placeholder="房间号" autocomplete="off" spellcheck="false">
         <button class="primary" id="btnJoin" style="width:100%">加入房间</button>
-        <div class="require">加入后先当观众；坐下才上场。<b>对局进行中的新颜色</b>上场需要<b>所有在场玩家同意</b>（弹窗）；空位可直接接替。</div>
+        <div class="require"></div>
       </div>
     </div>
     <div class="lobby-msg" id="lobbyMsg"></div>
@@ -1958,10 +1971,10 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
       const data = await api('stand');
       if (!data.ok) { setMessage(data.error, 'warn'); return; }
       sync(data);
-      setMessage('你已<b>下来</b>（让出座位）：棋局原样保留，任何人坐上这个空位都能接着下。'
-        + '想重新上场就在「座位」里点那个空位；想退出比赛请先「认输」。', 'info');
+      setMessage('你已<b>下场</b>。'
+        + '棋局保留，他人可以续下。', 'info');
     } catch (e) {
-      setMessage('网络异常，没能下来（请检查连接后重试）。', 'warn');
+      setMessage('网络异常，下场失败。请检查连接后重试。', 'warn');
     }
   }
 
@@ -2116,16 +2129,14 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
     hideLobby();
     sync(data);
     const nameTag = net.youId
-      ? '（用户 <b>' + esc(net.youName || '—') + '</b> <span class="idnote">' + esc(net.youId) + '</span>）'
+      ? '用户名：<b>' + esc(net.youName || '—') + '</b> <span class="idnote">' + esc(net.youId) + '</span>'
       : '';
     if (isPlayer()) {
-      setMessage('已回到房间 <b>' + data.room + '</b>，你坐在<b>' + colorName(net.color) + '</b>位上' + nameTag + '。' + nextInstruction(), 'info');
+      setMessage('已回到房间 <b>' + data.room + '</b>，你是<b>' + colorName(net.color) + '</b>' + nameTag + '。' + nextInstruction(), 'info');
     } else if (net.status === 'waiting') {
-      setMessage('已创建房间 <b>' + data.room + '</b>' + nameTag + '。把房间号发给别人，'
-        + '进入房间后<b>在右侧选颜色坐下</b>就开始对局。', 'info');
+      setMessage('已创建房间：<b>' + data.room + '</b>。' + nameTag + '。可以分享房间号邀请对手', 'info');
     } else {
-      setMessage('已进入房间 <b>' + data.room + '</b>' + nameTag + '，你现在是<b>观众</b>：'
-        + '想下棋就在右侧<b>选空位坐下</b>（对局进行中也可加入，但是需要所有在场玩家同意）。' + nextInstruction(), 'info');
+      setMessage('已进入房间：<b>' + data.room + '</b>。' + nameTag + '，你现在是<b>观众</b>：' + nextInstruction(), 'info');
     }
     renderNet();
   }
@@ -2194,11 +2205,10 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
     if (account && account.user) {
       el.innerHTML = '已登录：<b>' + esc(account.user) + '</b> '
         + '<button class="mini" id="btnLogout">退出登录</button>'
-        + '<br><span class="idnote">同一账号可以在手机 / 电脑上分别登录，接着下同一盘棋。</span>';
+        + '<br><span class="idnote"></span>';
       document.getElementById('btnLogout').addEventListener('click', logoutFlow);
     } else {
-      el.textContent = '未登录也可以创建 / 加入房间：会以「游客」临时身份进入（不保存账号、不跨设备）。'
-        + '想换手机 / 电脑接着下同一盘棋，就「注册新用户」或「登录」。';
+      el.textContent = '也可以不登录直接开玩';
     }
   }
 
@@ -2207,11 +2217,11 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
     const user = (document.getElementById('authUser').value || '').trim();
     const pass = document.getElementById('authPass').value || '';
     if (!/^[\w\u4e00-\u9fa5]{2,16}$/.test(user)) {
-      setLobbyMsg('用户名要 2-16 位（字母 / 数字 / 下划线 / 中文）。', false);
+      setLobbyMsg('用户名至少2位，可包含字母、数字、下划线、中文。', false);
       return;
     }
     if (pass.length < 4) {
-      setLobbyMsg('密码至少 4 位（记牢它：换设备登录要靠它）。', false);
+      setLobbyMsg('密码至少 4 位。', false);
       return;
     }
     setLobbyMsg(kind === 'register' ? '正在注册…' : '正在登录…', true);
@@ -2373,7 +2383,7 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
     if (req.kind === 'proposal') {
       const name = proposalName(net.proposal.type);
       body.innerHTML = req.mine
-        ? '你提议「<b>' + name + '</b>」：等<b>所有在场玩家都同意</b>后才生效（有人拒绝即作废）。'
+        ? '你提议「<b>' + name + '</b>」：等<b>所有在场玩家都同意</b>后才生效。'
         : '<b>' + colorName(net.proposal.by) + '</b> 提议「<b>' + name + '</b>」：'
           + '<b>需要所有在场玩家都同意</b>才生效，请表态。';
     } else {
@@ -2430,11 +2440,11 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
 
   function refreshMessage(change) {
     if (change === 'reset') {
-      setMessage('新对局开始。黑方先行：第一根棍必须与<b>棋盘边框</b>相连。' + nextInstruction(), 'info');
+      setMessage('新对局开始。第一根棍必须与<b>棋盘边框</b>相连。' + nextInstruction(), 'info');
       return;
     }
     if (change === 'load') {
-      setMessage('棋盘已换成载入的棋谱（分支续下）。' + nextInstruction(), 'info');
+      setMessage('棋盘已换成载入的棋谱。可分支续下。' + nextInstruction(), 'info');
       return;
     }
     if (change === 'undo') {
@@ -2451,7 +2461,7 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
       ? '你（' + colorName(last.player) + '）'
       : colorName(last.player);
     if (last.resign) {
-      setMessage(who + '认输' + (state.over ? '，对局结束。' : '退出比赛，其余棋手继续下。'), 'info');
+      setMessage(who + '认输' + (state.over ? '，对局结束。' : '退出比赛。'), 'info');
       return;
     }
     if (last.end) {
@@ -2461,7 +2471,7 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
     if (last.claimed) {
       setMessage('🎉 ' + who + '围得 <b>' + last.claimed + '</b> 格！' + nextInstruction(), 'claim');
     } else if (last.even) {
-      setMessage(who + '落子 ' + Logic.edgeLabel(last.edge) + '：两块地一样大，<b>平分不算</b>（不染色、不计数）。' + nextInstruction(), 'info');
+      setMessage(who + '落子 ' + Logic.edgeLabel(last.edge) + '：两块地一样大，<b>平分不算</b>。' + nextInstruction(), 'info');
     } else {
       setMessage(who + '落子 ' + Logic.edgeLabel(last.edge) + '。' + nextInstruction(), 'info');
     }
@@ -2493,24 +2503,20 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
     document.getElementById('btnLeaveRoom').hidden = !net.room;
     if (!net.room) { bar.innerHTML = ''; return; }
     const online = net.members.filter(function (m) { return m.online; }).length;
-    const seat = isPlayer()
-      ? '你坐<b>' + colorName(net.color) + '</b>位'
-      : '<b>观战中</b>' + (net.youId ? '（' + esc(net.youName || net.youId) + '）' : '');
+
     const conn = net.connected
       ? '<span class="ok">已连接</span>'
       : '<span class="bad">连接断开，重连中…</span>';
     bar.innerHTML = '房间 <b>' + net.room + '</b>'
-      + ' · <b>' + net.size + '</b> 路棋盘'
-      + ' · ' + seat
-      + ' · 在线 <b>' + online + '</b> / ' + net.members.length + ' 人'
+      + ' · 共<b>' + online + '</b>人在线'
       + ' · ' + conn
-      + ' <button class="mini" id="btnCopyLink">复制邀请链接</button>';
+      + ' <button class="mini" id="btnCopyLink"><b>复制链接</b></button>';
     document.getElementById('btnCopyLink').addEventListener('click', copyInvite);
   }
 
   function copyInvite() {
     const url = inviteUrl();
-    const done = function () { setMessage('邀请链接已复制：<b>' + url + '</b>', 'info'); };
+    const done = function () { setMessage('链接已复制：<b>' + url + '</b>', 'info'); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(done, function () {
         window.prompt('复制此地址发给对手：', url);
@@ -2548,10 +2554,8 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
 
     document.getElementById('youText').innerHTML = net.room
       ? (isPlayer()
-        ? '你坐在<b>' + colorName(net.color) + '</b>位上'
-        : '你是<b>观众</b>（还没坐下）')
-        + (net.youId ? ' · 用户 <b>' + esc(net.youName || '—') + '</b> <span class="idnote">' + esc(net.youId) + '</span>' : '')
-        + ' · 房间号 <b>' + net.room + '</b> · <b>' + net.size + '</b> 路棋盘'
+        ? '你是<b>' + colorName(net.color) + '</b>。'
+        : '你是<b>观众</b>。')
       : '尚未加入房间。';
 
     // 在线成员（所有人：各色棋手 + 观众）：昵称醒目，id 淡淡小字备注在旁边
@@ -2567,9 +2571,9 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
     document.getElementById('requireText').innerHTML = state.over
       ? '本局已结束。'
       : (net.status === 'waiting'
-        ? '把房间号或邀请链接发给对方，等他坐下后自动开始（其他人可以观战）。'
+        ? '可分享链接邀请玩家对战。'
         : (!isPlayer()
-          ? '你在<b>观战</b>：棋盘实时同步，随时可以退出房间回大厅。'
+          ? '你在<b>观战</b>。'
           : (legal.mode === 'link'
             ? '落子要求：接在上一根棍的<b>末端（线头）</b>上，不能接它的另一端。'
             : '落子要求：<b>新开一串</b>：与<b>棋盘边框</b>或<b>任何一根已下的棍</b>相连。')));
@@ -2582,9 +2586,8 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
     aiBtn.textContent = ai.on ? '手动接管' : '电脑代下';
     aiBtn.disabled = !isPlayer();
     document.getElementById('aiHint').innerHTML = ai.on
-      ? '电脑代下<b>开启中</b>（枚举深度 <b>' + readAiDepth() + '</b> 步）：轮到你时电脑自动落子，'
-        + '点「<b>手动接管</b>」或自己动手落子即收回。'
-      : '<b>手动下棋</b>：点「<b>电脑代下</b>」让电脑按设定的枚举深度一直替你下，再点一下收回。';
+      ? '当前为<b>人机代下</b>。枚举深度 <b>' + readAiDepth() + '</b> 步'
+      : '当前为<b>手动下棋</b>';
 
     // 思考时间：设置值 + 当前行棋方倒计时
     const thinkEl = document.getElementById('thinkClock');
@@ -2601,11 +2604,11 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
         thinkEl.innerHTML = '思考时间：<b>' + colorName(state.turn) + '座位空着</b>（等接替者上场后重新计时）。';
       }
     } else {
-      thinkEl.textContent = net.thinkLimit > 0 ? '思考时间：当前不在对局中。' : '思考时间：不限时（可在「对局操作」里设置）。';
+      thinkEl.textContent = net.thinkLimit > 0 ? '思考时间：当前不在对局中。' : '思考时间：不限时';
     }
     hintEl.innerHTML = net.thinkLimit > 0
-      ? '当前设置：<b>' + net.thinkLimit + ' 秒</b>。轮到的一方超时会被<b>踢下座位</b>（棋局保留、本局不能再上场，别人可接替）。'
-      : '当前<b>不限时</b>（0）。填入秒数点「应用」即可开启：超时的一方会被<b>自动请下场</b>。';
+      ? '思考时间超过<b>' + net.thinkLimit + ' 秒</b>会被<b>踢下座位</b>'
+      : '当前<b>不限时</b>';
     const thinkIn = document.getElementById('thinkInput');
     if (!thinkDirty && thinkIn.value !== String(net.thinkLimit)) thinkIn.value = String(net.thinkLimit);
 
@@ -2655,8 +2658,8 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
         // 还在行棋轮次里的空位 = 有人下来 / 掉线 / 超时被踢下场留下的：可直接接替
         const takeover = net.status === 'playing' && net.order.indexOf(c) >= 0;
         return '<button class="seat free" data-color="' + c + '">' + chipHtml(c)
-          + '<span class="who2"><span class="nm">' + colorName(c) + ' · 空位</span>'
-          + '<span class="mid">' + (takeover ? '点此处接替上场（棋局不重置）' : '点此处坐下上场') + '</span></span></button>';
+          + '<span class="who2"><span class="nm">' + colorName(c) + ' · 无人</span>'
+          + '<span class="mid">' + (takeover ? '点此接替' : '点此上场') + '</span></span></button>';
       }
       return '<button class="seat' + (mine ? ' mine' : '') + '" disabled>' + chipHtml(c)
         + '<span class="who2"><span class="nm">' + colorName(c) + ' · ' + (member.name ? esc(member.name) : '—') + '</span>'
@@ -2689,12 +2692,12 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
       if (!data.ok) { setMessage(data.error, 'warn'); return; }
       sync(data);
       if (isPlayer()) {
-        setMessage('你坐上了<b>' + colorName(net.color) + '</b>位，上场了。' + nextInstruction(), 'info');
+        setMessage('你选择了<b>' + colorName(net.color) + '</b>。' + nextInstruction(), 'info');
       } else {
-        setMessage('已申请以 <b>' + colorName(color) + '</b> 上场：等<b>所有在场棋手</b>同意后即可上座。', 'info');
+        setMessage('已申请执<b>' + colorName(color) + '</b>。等待<b>所有在场棋手</b>同意。', 'info');
       }
     } catch (e) {
-      setMessage('网络异常，上场申请没有送达。', 'warn');
+      setMessage('网络异常，申请发送失败。', 'warn');
     }
   }
 
@@ -2709,10 +2712,10 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
       } else if (accept) {
         setMessage('所有在场玩家都已同意。新棋手已上场。' + nextInstruction(), 'info');
       } else {
-        setMessage('上场申请已撤销或被拒绝。' + nextInstruction(), 'info');
+        setMessage('申请已撤销或被拒绝。' + nextInstruction(), 'info');
       }
     } catch (e) {
-      setMessage('网络异常，回应没有送达。', 'warn');
+      setMessage('网络异常，回应发送失败。', 'warn');
     }
   }
 
@@ -2733,7 +2736,7 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
   document.getElementById('btnNew').addEventListener('click', function () {
     if (net.status === 'waiting' || net.status === 'lobby') return;
     if (net.moves.length > 0 && !state.over
-        && !window.confirm('当前对局尚未结束，确定要提议开始新对局吗？（需要所有在场玩家同意）')) return;
+        && !window.confirm('当前对局尚未结束，需要所有在场玩家同意。确定发送申请？')) return;
     sendPropose('new');
   });
   document.getElementById('btnOverlayNew').addEventListener('click', function () {
@@ -2744,7 +2747,7 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
   });
   document.getElementById('btnResign').addEventListener('click', function () {
     if (state.over) return;
-    if (!window.confirm('你（' + colorName(net.color) + '）确定认输、退出比赛吗？（其余棋手会继续下）')) return;
+    if (!window.confirm('你（' + colorName(net.color) + '）确定认输？')) return;
     sendResign();
   });
 
@@ -2778,8 +2781,8 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
   // 座位上的「下来」：让出座位但保留棋局（别人可接替继续下）
   document.getElementById('btnStand').addEventListener('click', function () {
     if (!isPlayer()) return;
-    if (!window.confirm('确定离开' + colorName(net.color) + '座位？'
-      + '棋局不会重置、也不会算你认输。任何人都能坐上去继续下。')) return;
+    if (!window.confirm('确定离开' + colorName(net.color) + '位？'
+      + '棋局将会继续。')) return;
     sendStand();
   });
 
@@ -2801,7 +2804,7 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
   // 电脑代下：点一下让电脑一直替你下（可设枚举深度），再点「手动接管」收回自己下
   document.getElementById('btnAiPlay').addEventListener('click', function () {
     if (!isPlayer()) {
-      setMessage('你是<b>观众</b>，不能让电脑代下；请先在「座位」里坐下上场。', 'warn');
+      setMessage('你是<b>观众</b>，不能让电脑代下。请先选择所执颜色。', 'warn');
       return;
     }
     setAutoPlay(!ai.on);
@@ -2835,11 +2838,11 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
     if (size === net.size) {
       sizeDirty = false;
       renderPanel();
-      setMessage('棋盘现在就是 <b>' + net.size + ' 路</b>。', 'info');
+      setMessage('棋盘已经是 <b>' + net.size + ' 路</b>。', 'info');
       return;
     }
     if (net.moves.length > 0
-        && !window.confirm('更改棋盘大小会清空当前棋局（' + net.size + ' 路 → ' + size + ' 路），确定要重开一局？')) return;
+        && !window.confirm('更改棋盘大小会清空当前棋局（' + net.size + ' 路 → ' + size + ' 路），确定继续？')) return;
     try {
       const data = await api('size', { size: size });
       if (!data.ok) {
@@ -2849,7 +2852,7 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
       sizeDirty = false;
       sync(data);
     } catch (e) {
-      setMessage('网络异常，棋盘大小没有修改成功。', 'warn');
+      setMessage('网络异常，棋盘大小修改失败。', 'warn');
     }
   });
 
@@ -2858,12 +2861,12 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
     if (net.status === 'over') return { ok: true };
     try {
       const data = await api('end');
-      if (!data || !data.ok) return { ok: false, error: (data && data.error) || '未能结束对局' };
+      if (!data || !data.ok) return { ok: false, error: (data && data.error) || '对局结束失败' };
       sync(data);
       // 「结束对局」也是提议：所有在场玩家同意后才真正生效（pending = 还在等大家表态）
       return { ok: true, pending: !!net.proposal };
     } catch (e) {
-      return { ok: false, error: '网络异常，未能结束对局' };
+      return { ok: false, error: '网络异常，对局结束失败' };
     }
   }
 
@@ -2876,13 +2879,13 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
       const data = await api('load', body);
       if (!data || !data.ok) {
         net.expectLoad = false;
-        return { ok: false, error: (data && data.error) || '未能载入棋谱' };
+        return { ok: false, error: (data && data.error) || '棋谱载入失败' };
       }
       sync(data);
       return { ok: true };
     } catch (e) {
       net.expectLoad = false;
-      return { ok: false, error: '网络异常，未能载入棋谱' };
+      return { ok: false, error: '网络异常，棋谱载入失败' };
     }
   }
 
@@ -2956,7 +2959,7 @@ if (typeof module !== 'undefined' && module.exports) { module.exports = Logic; }
     const urlRoom = (new URLSearchParams(location.search).get('room') || '').trim().toUpperCase();
     const saved = loadSession();
     if (saved && saved.room && saved.token) {
-      setMessage('正在恢复上次的对局…', 'info');
+      setMessage('正在恢复对局…', 'info');
       const ok = await joinRoom(saved.room, saved.token, true);
       if (ok) {
         poll();
